@@ -1,0 +1,269 @@
+/**
+ * WASGO Premium Admin Styles
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.wasgo-premium-wrap {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    color: #1a1b1f;
+    margin-top: 20px;
+}
+
+/* Dynamic Gradients! */
+.wasgo-header {
+    background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
+    padding: 30px 40px;
+    border-radius: 12px;
+    color: #fff;
+    margin-bottom: 25px;
+    box-shadow: 0 10px 25px rgba(79, 70, 229, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.wasgo-header::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+    border-radius: 50%;
+}
+
+.wasgo-header h1 {
+    color: #ffffff !important;
+    font-size: 32px !important;
+    margin: 0 0 8px 0 !important;
+    font-weight: 700 !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.wasgo-header-subtitle {
+    font-size: 16px;
+    opacity: 0.9;
+    margin: 0;
+    font-weight: 400;
+}
+
+/* Nav Tabs */
+.wasgo-premium-wrap .nav-tab-wrapper {
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 0;
+    padding-top: 10px;
+    padding-left: 20px;
+}
+
+.wasgo-premium-wrap .nav-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 15px;
+    font-weight: 600;
+    color: #64748b;
+    padding: 12px 24px;
+    margin-right: 8px;
+    transition: all 0.2s ease;
+    border-radius: 6px 6px 0 0;
+}
+
+.wasgo-premium-wrap .nav-tab:hover {
+    background: rgba(79, 70, 229, 0.05);
+    color: #4f46e5;
+}
+
+.wasgo-premium-wrap .nav-tab-active,
+.wasgo-premium-wrap .nav-tab-active:hover {
+    background: transparent;
+    border-bottom: 3px solid #4f46e5;
+    color: #4f46e5;
+}
+
+/* Tab Content Container */
+.wasgo-tab-content {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    padding: 40px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Interactive Cards */
+.wasgo-admin-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.wasgo-admin-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 20px rgba(0,0,0,0.05);
+}
+
+.wasgo-admin-card h2 {
+    font-size: 22px !important;
+    color: #0f172a;
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 15px;
+    font-weight: 600;
+}
+
+.wasgo-admin-card p {
+    font-size: 15px;
+    color: #475569;
+    line-height: 1.6;
+}
+
+/* Beautiful Buttons */
+.wasgo-premium-wrap .button-primary {
+    background: #4f46e5 !important;
+    border-color: #4f46e5 !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    padding: 6px 24px !important;
+    font-weight: 600 !important;
+    font-family: 'Inter', sans-serif !important;
+    text-shadow: none !important;
+    box-shadow: 0 4px 6px rgba(79, 70, 229, 0.25) !important;
+    transition: all 0.2s ease !important;
+}
+
+.wasgo-premium-wrap .button-primary:hover {
+    background: #4338ca !important;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(79, 70, 229, 0.35) !important;
+}
+
+.wasgo-premium-wrap .button-secondary {
+    border-radius: 8px !important;
+    padding: 6px 24px !important;
+    font-weight: 600 !important;
+    font-family: 'Inter', sans-serif !important;
+    transition: all 0.2s ease !important;
+}
+
+.wasgo-premium-wrap .button-danger {
+    color: #ef4444 !important;
+    border-color: #fca5a5 !important;
+    background: #FEF2F2 !important;
+}
+
+.wasgo-premium-wrap .button-danger:hover {
+    background: #FEE2E2 !important;
+    border-color: #ef4444 !important;
+}
+
+/* Input Fields */
+.wasgo-premium-wrap input[type="text"],
+.wasgo-premium-wrap input[type="password"],
+.wasgo-premium-wrap textarea {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02) inset;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    width: 100%;
+    max-width: 600px;
+}
+
+.wasgo-premium-wrap input[type="text"]:focus,
+.wasgo-premium-wrap input[type="password"]:focus,
+.wasgo-premium-wrap textarea:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    outline: none;
+}
+
+/* Dashboard Home Cards */
+.wasgo-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 30px;
+}
+.wasgo-home-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,.02);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.wasgo-home-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0,0,0,.08);
+    border-color: #cbd5e1;
+}
+
+/* Animated Progress Bars */
+.wasgo-progress-bar-bg {
+    background: #f1f5f9 !important;
+    border-radius: 12px !important;
+    border: 1px solid #e2e8f0;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
+    height: 28px !important;
+}
+
+.wasgo-progress-bar-fill, #wasgo-progress-bar-fill {
+    background: linear-gradient(90deg, #4f46e5 0%, #9333ea 100%) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 6px rgba(147, 51, 234, 0.3);
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+}
+
+#wasgo-del-progress-bar-fill {
+    background: linear-gradient(90deg, #ef4444 0%, #f97316 100%) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+}
+
+#wasgo-progress-bar-fill::after, #wasgo-del-progress-bar-fill::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.2) 25%,
+        transparent 25%,
+        transparent 50%,
+        rgba(255, 255, 255, 0.2) 50%,
+        rgba(255, 255, 255, 0.2) 75%,
+        transparent 75%,
+        transparent
+    );
+    background-size: 2rem 2rem;
+    animation: wasgo-progress-stripes 1s linear infinite;
+}
+
+@keyframes wasgo-progress-stripes {
+    from { background-position: 2rem 0; }
+    to { background-position: 0 0; }
+}
+
+/* Tables */
+.wasgo-premium-wrap .form-table th {
+    font-weight: 600;
+    color: #334155;
+    font-size: 15px;
+}
+.wasgo-bulk-wrapper {
+    max-width: 800px;
+}
