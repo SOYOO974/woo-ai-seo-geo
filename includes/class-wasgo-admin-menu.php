@@ -190,6 +190,13 @@ class WASGO_Admin_Menu {
                         <span class="description">Automatically delete failure logs that are older than 30 days.</span>
                     </td>
                 </tr>
+                <tr>
+                    <th><label for="wasgo_exclude_outofstock">Exclude Out Of Stock Products</label></th>
+                    <td>
+                        <input type="checkbox" name="wasgo_exclude_outofstock" id="wasgo_exclude_outofstock" value="1" <?php checked( 1, get_option( 'wasgo_exclude_outofstock', 0 ) ); ?> />
+                        <span class="description">If checked, products that are strictly "Out of stock" will be completely skipped during bulk generation.</span>
+                    </td>
+                </tr>
             </table>
             <?php submit_button( 'Save Settings' ); ?>
         </form>

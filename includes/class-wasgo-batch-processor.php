@@ -101,19 +101,30 @@ class WASGO_Batch_Processor {
             'fields'         => 'ids',
         ];
 
+        $meta_query = [ 'relation' => 'AND' ];
+
         if ( ! $force_all ) {
             // Only products that NOT have 'prevent_ebp_image_sync' AND NOT have 'wasgo_api_failed'
-            $args['meta_query'] = [
-                'relation' => 'AND',
-                [
-                    'key'     => 'prevent_ebp_image_sync',
-                    'compare' => 'NOT EXISTS',
-                ],
-                [
-                    'key'     => 'wasgo_api_failed',
-                    'compare' => 'NOT EXISTS',
-                ]
+            $meta_query[] = [
+                'key'     => 'prevent_ebp_image_sync',
+                'compare' => 'NOT EXISTS',
             ];
+            $meta_query[] = [
+                'key'     => 'wasgo_api_failed',
+                'compare' => 'NOT EXISTS',
+            ];
+        }
+
+        if ( class_exists( 'WASGO_Settings' ) && WASGO_Settings::should_exclude_outofstock() ) {
+            $meta_query[] = [
+                'key'     => '_stock_status',
+                'value'   => 'outofstock',
+                'compare' => '!=',
+            ];
+        }
+
+        if ( count( $meta_query ) > 1 ) {
+            $args['meta_query'] = $meta_query;
         }
 
         $products = get_posts( $args );
@@ -154,18 +165,29 @@ class WASGO_Batch_Processor {
             'post_status'    => 'publish',
         ];
 
+        $meta_query = [ 'relation' => 'AND' ];
+
         if ( ! $force_all ) {
-            $args['meta_query'] = [
-                'relation' => 'AND',
-                [
-                    'key'     => 'prevent_ebp_image_sync',
-                    'compare' => 'NOT EXISTS',
-                ],
-                [
-                    'key'     => 'wasgo_api_failed',
-                    'compare' => 'NOT EXISTS',
-                ]
+            $meta_query[] = [
+                'key'     => 'prevent_ebp_image_sync',
+                'compare' => 'NOT EXISTS',
             ];
+            $meta_query[] = [
+                'key'     => 'wasgo_api_failed',
+                'compare' => 'NOT EXISTS',
+            ];
+        }
+
+        if ( class_exists( 'WASGO_Settings' ) && WASGO_Settings::should_exclude_outofstock() ) {
+            $meta_query[] = [
+                'key'     => '_stock_status',
+                'value'   => 'outofstock',
+                'compare' => '!=',
+            ];
+        }
+
+        if ( count( $meta_query ) > 1 ) {
+            $args['meta_query'] = $meta_query;
         }
 
         // Wait, if it's force_all = true, we need to paginate through them using the batch number.

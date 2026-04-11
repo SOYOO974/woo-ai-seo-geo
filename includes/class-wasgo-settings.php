@@ -24,6 +24,7 @@ class WASGO_Settings {
         register_setting( 'wasgo_settings_group', 'wasgo_delete_original', [ 'sanitize_callback' => 'absint' ] );
         register_setting( 'wasgo_settings_group', 'wasgo_auto_compress', [ 'sanitize_callback' => 'absint' ] );
         register_setting( 'wasgo_settings_group', 'wasgo_auto_clear_logs', [ 'sanitize_callback' => 'absint' ] );
+        register_setting( 'wasgo_settings_group', 'wasgo_exclude_outofstock', [ 'sanitize_callback' => 'absint' ] );
     }
 
     public static function get_api_key() {
@@ -44,5 +45,9 @@ class WASGO_Settings {
 
     public static function should_auto_clear_logs() {
         return (bool) get_option( 'wasgo_auto_clear_logs', 0 );
+    }
+
+    public static function should_exclude_outofstock() {
+        return (bool) get_option( 'wasgo_exclude_outofstock', 0 );
     }
 }
