@@ -12,6 +12,8 @@ class WASGO_Batch_Processor {
     public function __construct() {
         add_action( 'wasgo_process_image_batch', [ $this, 'process_batch' ], 10, 2 );
         add_action( 'wasgo_process_delete_batch', [ $this, 'process_delete_batch' ], 10, 2 );
+        add_action( 'save_post_product', [ $this, 'enqueue_new_product' ], 10, 3 );
+        add_action( 'wasgo_process_single_product', [ $this, 'process_single_product' ], 10, 1 );
     }
 
     /**
@@ -277,5 +279,51 @@ class WASGO_Batch_Processor {
         } else {
             update_option( 'wasgo_bulk_delete_status', 'finished' );
         }
+    }
+
+    /**
+     * Enqueue a single new product when it is published and auto-process setting is strictly active
+     */
+    public function enqueue_new_product( $post_id, $post, $update ) {
+        if ( wp_is_post_revision( $post_id ) || ! class_exists( 'WASGO_Settings' ) ) {
+            return;
+        }
+
+        if ( ! WASGO_Settings::should_auto_process_new() ) {
+            return;
+        }
+
+        // We strictly only process published products
+        if ( $post->post_status !== 'publish' ) {
+            return;
+        }
+
+        // Only explicitly process if this product hasn't successfully generated an image before
+        $already_processed = get_post_meta( $post_id, 'prevent_ebp_image_sync', true );
+        if ( ! $already_processed ) {
+            if ( function_exists( 'as_enqueue_async_action' ) ) {
+                as_enqueue_async_action( 'wasgo_process_single_product', [ $post_id ], 'wasgo' );
+            }
+        }
+    }
+
+    /**
+     * Action Scheduler designated hook to process a single standalone product
+     */
+    public function process_single_product( $product_id ) {
+        $post_status = get_post_status( $product_id );
+        if ( $post_status !== 'publish' ) {
+            return; // Fallback abort if unpublished between queue and execution
+        }
+
+        if ( class_exists( 'WASGO_Settings' ) && WASGO_Settings::should_exclude_outofstock() ) {
+            $stock_status = get_post_meta( $product_id, '_stock_status', true );
+            if ( $stock_status === 'outofstock' ) {
+                return; // Fallback abort if product became out of stock 
+            }
+        }
+
+        // Process seamlessly native
+        WASGO_Image_Generator::process_product( $product_id, false );
     }
 }

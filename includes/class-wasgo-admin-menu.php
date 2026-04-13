@@ -197,6 +197,13 @@ class WASGO_Admin_Menu {
                         <span class="description">If checked, products that are strictly "Out of stock" will be completely skipped during bulk generation.</span>
                     </td>
                 </tr>
+                <tr>
+                    <th><label for="wasgo_auto_process_new">Auto-Process New Products</label></th>
+                    <td>
+                        <input type="checkbox" name="wasgo_auto_process_new" id="wasgo_auto_process_new" value="1" <?php checked( 1, get_option( 'wasgo_auto_process_new', 0 ) ); ?> />
+                        <span class="description">Automatically enqueue new products to Action Scheduler for AI enhancement upon creation/publish.</span>
+                    </td>
+                </tr>
             </table>
             <?php submit_button( 'Save Settings' ); ?>
         </form>
