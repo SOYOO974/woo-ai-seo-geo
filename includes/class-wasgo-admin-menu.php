@@ -183,6 +183,20 @@ class WASGO_Admin_Menu {
                         <span class="description">Auto compress images to WebP format.</span>
                     </td>
                 </tr>
+                <tr class="wasgo-compress-dependency" style="<?php echo WASGO_Settings::should_auto_compress() ? '' : 'display:none;'; ?>">
+                    <th><label for="wasgo_image_quality">Image Quality</label></th>
+                    <td>
+                        <input type="number" name="wasgo_image_quality" id="wasgo_image_quality" min="1" max="100" value="<?php echo esc_attr( WASGO_Settings::get_image_quality() ); ?>" class="small-text" />
+                        <span class="description">Set compression quality (1-100). Default is 85.</span>
+                    </td>
+                </tr>
+                <tr class="wasgo-compress-dependency" style="<?php echo WASGO_Settings::should_auto_compress() ? '' : 'display:none;'; ?>">
+                    <th><label for="wasgo_max_height">Maximum Height (px)</label></th>
+                    <td>
+                        <input type="number" name="wasgo_max_height" id="wasgo_max_height" min="100" step="50" value="<?php echo esc_attr( WASGO_Settings::get_max_height() ); ?>" class="small-text" />
+                        <span class="description">Set the maximum height (in pixels) for generated images. Default is 1000px. Images larger than this will be resized while maintaining aspect ratio.</span>
+                    </td>
+                </tr>
                 <tr>
                     <th><label for="wasgo_auto_clear_logs">Auto Clear Old Logs</label></th>
                     <td>

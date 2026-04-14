@@ -177,7 +177,14 @@ class WASGO_Image_Generator {
         $auto_compress = WASGO_Settings::should_auto_compress();
 
         if ( ! is_wp_error( $editor ) && $auto_compress ) {
-            $editor->set_quality( 85 );
+            // Check for height constraints
+            $max_height = WASGO_Settings::get_max_height();
+            $size = $editor->get_size();
+            if ( $size && isset( $size['height'] ) && $size['height'] > $max_height ) {
+                $editor->resize( 99999, $max_height, false );
+            }
+
+            $editor->set_quality( WASGO_Settings::get_image_quality() );
             $filename = 'ai-gen-' . $safe_title . '-' . time() . '.webp';
             $upload_dir = wp_upload_dir();
             $dest_path = $upload_dir['path'] . '/' . $filename;

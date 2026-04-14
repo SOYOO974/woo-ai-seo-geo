@@ -26,6 +26,8 @@ class WASGO_Settings {
         register_setting( 'wasgo_settings_group', 'wasgo_auto_clear_logs', [ 'sanitize_callback' => 'absint' ] );
         register_setting( 'wasgo_settings_group', 'wasgo_exclude_outofstock', [ 'sanitize_callback' => 'absint' ] );
         register_setting( 'wasgo_settings_group', 'wasgo_auto_process_new', [ 'sanitize_callback' => 'absint' ] );
+        register_setting( 'wasgo_settings_group', 'wasgo_image_quality', [ 'sanitize_callback' => 'absint' ] );
+        register_setting( 'wasgo_settings_group', 'wasgo_max_height', [ 'sanitize_callback' => 'absint' ] );
     }
 
     public static function get_api_key() {
@@ -54,5 +56,13 @@ class WASGO_Settings {
 
     public static function should_auto_process_new() {
         return (bool) get_option( 'wasgo_auto_process_new', 0 );
+    }
+
+    public static function get_image_quality() {
+        return (int) get_option( 'wasgo_image_quality', 85 );
+    }
+
+    public static function get_max_height() {
+        return (int) get_option( 'wasgo_max_height', 1000 );
     }
 }

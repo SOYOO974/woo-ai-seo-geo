@@ -284,4 +284,15 @@ jQuery(document).ready(function($) {
         }
     });
 
+    // -------------------------------------------------------------
+    // Settings UI Toggles
+    // -------------------------------------------------------------
+    $('#wasgo_auto_compress').on('change', function() {
+        if ($(this).is(':checked')) {
+            $('.wasgo-compress-dependency').show();
+        } else {
+            $('.wasgo-compress-dependency').hide();
+        }
+    });
+
 });
