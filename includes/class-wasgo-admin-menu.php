@@ -263,6 +263,34 @@ class WASGO_Admin_Menu {
             </div>
 
             <div class="wasgo-admin-card">
+                <h2>Bulk Gallery Enhancement</h2>
+                <p>Enhance the galleries of all products in the background. Does not affect featured images.</p>
+                <p style="margin-top: 15px;">
+                    <label style="font-weight: 500;">
+                        <input type="checkbox" id="wasgo_gallery_force" value="1">
+                        Force generate for all gallery images <span style="font-weight: normal; color: #64748b;">(Regenerate even if gallery was enhanced previously)</span>
+                    </label>
+                </p>
+
+                <div class="wasgo-buttons" style="margin-top: 25px;">
+                    <button type="button" id="wasgo-gal-btn-start" class="button button-primary button-large">Start / Resume Gallery Enhancement</button>
+                    <button type="button" id="wasgo-gal-btn-stop" class="button button-secondary button-large" disabled>Pause</button>
+                    <button type="button" id="wasgo-gal-btn-restart" class="button button-secondary button-large button-danger">Restart Gallery (From Scratch)</button>
+                </div>
+
+                <div id="wasgo-gal-progress-container" style="margin-top: 30px; display: none;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <strong id="wasgo-gal-status-text" style="color: #4f46e5;">Calculating...</strong>
+                        <strong id="wasgo-gal-progress-text" style="color: #475569;">0 / 0</strong>
+                    </div>
+                    <div class="wasgo-progress-bar-bg">
+                        <div id="wasgo-gal-progress-bar-fill" style="width: 0%; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                    </div>
+                </div>
+                <div id="wasgo-gal-bulk-notice" style="margin-top:20px;"></div>
+            </div>
+
+            <div class="wasgo-admin-card">
                 <h2>Bulk Backup Deletion</h2>
                 <p>Permanently delete all physical backup images attached to products. This frees up server space but prevents image restoration forever.</p>
                 

@@ -19,6 +19,11 @@ class WASGO_AJAX {
         add_action( 'wp_ajax_wasgo_start_bulk_delete', [ $this, 'ajax_start_bulk_delete' ] );
         add_action( 'wp_ajax_wasgo_stop_bulk_delete', [ $this, 'ajax_stop_bulk_delete' ] );
         add_action( 'wp_ajax_wasgo_get_delete_progress', [ $this, 'ajax_get_delete_progress' ] );
+
+        // Bulk Gallery
+        add_action( 'wp_ajax_wasgo_start_bulk_gallery', [ $this, 'ajax_start_bulk_gallery' ] );
+        add_action( 'wp_ajax_wasgo_stop_bulk_gallery', [ $this, 'ajax_stop_bulk_gallery' ] );
+        add_action( 'wp_ajax_wasgo_get_gallery_progress', [ $this, 'ajax_get_gallery_progress' ] );
         
         // Single regen/delete
         add_action( 'wp_ajax_wasgo_force_regen', [ $this, 'ajax_force_regen' ] );
@@ -111,6 +116,48 @@ class WASGO_AJAX {
             'processed' => $processed,
             'total'     => $total
         ] );
+    }
+
+    public function ajax_get_gallery_progress() {
+        check_ajax_referer( 'wasgo_ajax_nonce', 'nonce' );
+        
+        $status = get_option( 'wasgo_bulk_gallery_status', 'stopped' );
+        $processed = (int) get_option( 'wasgo_gallery_processed_count', 0 );
+        $total = (int) get_option( 'wasgo_gallery_total_to_process', 0 );
+        
+        if ( $status === 'running' ) {
+            if ( $total == 0 || ( $total > 0 && $processed >= $total ) ) {
+                $status = 'finished';
+                update_option( 'wasgo_bulk_gallery_status', 'finished' );
+            }
+        }
+
+        wp_send_json_success( [
+            'status'    => $status,
+            'processed' => $processed,
+            'total'     => $total
+        ] );
+    }
+
+    public function ajax_start_bulk_gallery() {
+        check_ajax_referer( 'wasgo_ajax_nonce', 'nonce' );
+        
+        $force = isset( $_POST['force'] ) && $_POST['force'] === '1' ? true : false;
+        $resume = isset( $_POST['resume'] ) && $_POST['resume'] === '1' ? true : false;
+        
+        $total = WASGO_Batch_Processor::start_bulk_gallery( $force, $resume );
+
+        if ( $total > 0 ) {
+            wp_send_json_success( [ 'message' => "Started enhancing galleries for $total products.", 'total' => $total ] );
+        } else {
+            wp_send_json_error( [ 'message' => "No product galleries found to process." ] );
+        }
+    }
+
+    public function ajax_stop_bulk_gallery() {
+        check_ajax_referer( 'wasgo_ajax_nonce', 'nonce' );
+        WASGO_Batch_Processor::stop_bulk_gallery();
+        wp_send_json_success();
     }
 
     public function ajax_force_regen() {

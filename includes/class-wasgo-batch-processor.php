@@ -11,6 +11,7 @@ class WASGO_Batch_Processor {
 
     public function __construct() {
         add_action( 'wasgo_process_image_batch', [ $this, 'process_batch' ], 10, 2 );
+        add_action( 'wasgo_process_gallery_batch', [ $this, 'process_gallery_batch' ], 10, 2 );
         add_action( 'wasgo_process_delete_batch', [ $this, 'process_delete_batch' ], 10, 2 );
         add_action( 'save_post_product', [ $this, 'enqueue_new_product' ], 10, 3 );
         add_action( 'wasgo_process_single_product', [ $this, 'process_single_product' ], 10, 1 );
@@ -96,6 +97,47 @@ class WASGO_Batch_Processor {
     }
 
     /**
+     * Start the bulk gallery enhancement
+     */
+    public static function start_bulk_gallery( $force, $resume = false ) {
+        if ( $resume ) {
+            $total = get_option( 'wasgo_gallery_total_to_process', 0 );
+            $processed = get_option( 'wasgo_gallery_processed_count', 0 );
+            if ( $total == 0 || $processed >= $total ) {
+                $resume = false;
+            }
+        }
+
+        update_option( 'wasgo_gallery_force', $force );
+        
+        if ( ! $resume ) {
+            // Clear any pending individual gallery item tasks to ensure a true fresh start
+            as_unschedule_all_actions( 'wasgo_process_gallery_item' );
+
+            update_option( 'wasgo_gallery_processed_count', 0 );
+            $total = self::get_total_gallery_remaining( $force );
+            update_option( 'wasgo_gallery_total_to_process', $total );
+        } else {
+            $total = get_option( 'wasgo_gallery_total_to_process', 0 );
+        }
+
+        if ( $total > 0 ) {
+            update_option( 'wasgo_bulk_gallery_status', 'running' );
+            as_unschedule_all_actions( 'wasgo_process_gallery_batch' );
+            as_enqueue_async_action( 'wasgo_process_gallery_batch', [ $force, 1 ], 'wasgo-gallery-batch' );
+        } else {
+            update_option( 'wasgo_bulk_gallery_status', 'finished' );
+        }
+        
+        return $total;
+    }
+
+    public static function stop_bulk_gallery() {
+        update_option( 'wasgo_bulk_gallery_status', 'stopped' );
+        as_unschedule_all_actions( 'wasgo_process_gallery_batch' );
+    }
+
+    /**
      * Get count of products needing processing
      */
     public static function get_total_remaining( $force_all = false ) {
@@ -156,6 +198,58 @@ class WASGO_Batch_Processor {
 
         if ( count( $meta_query ) > 1 ) {
             $args['meta_query'] = $meta_query;
+        }
+
+        $products = get_posts( $args );
+        return count( $products );
+    }
+
+    /**
+     * Get count of products needing gallery processing
+     */
+    public static function get_total_gallery_remaining( $force = false ) {
+        $args = [
+            'post_type'      => 'product',
+            'posts_per_page' => -1,
+            'post_status'    => 'publish',
+            'fields'         => 'ids',
+            'meta_query'     => [
+                'relation' => 'AND',
+                [
+                    'key'     => '_product_image_gallery',
+                    'compare' => 'EXISTS'
+                ],
+                [
+                    'key'     => '_product_image_gallery',
+                    'value'   => '',
+                    'compare' => '!='
+                ],
+                [
+                    'key'     => '_product_image_gallery',
+                    'value'   => ' ', // Some plugins add a space
+                    'compare' => '!='
+                ]
+            ]
+        ];
+
+        if ( class_exists( 'WASGO_Settings' ) && WASGO_Settings::should_exclude_outofstock() ) {
+            $args['meta_query'][] = [
+                'key'     => '_stock_status',
+                'value'   => 'outofstock',
+                'compare' => '!=',
+            ];
+        }
+
+        // Note: We don't filter prevent_ebp_image_sync here because a product 
+        // could have a featured image done but not the gallery.
+        // The enqueue_gallery_tasks logic already skips AI images internally if not forced.
+
+        // If not forcing, we can try to skip products that are likely already done
+        if ( ! $force ) {
+            $args['meta_query'][] = [
+                'key'     => 'wasgo_gallery_enhanced',
+                'compare' => 'NOT EXISTS',
+            ];
         }
 
         $products = get_posts( $args );
@@ -293,6 +387,83 @@ class WASGO_Batch_Processor {
         }
     }
 
+    /**
+     * The hook called by Action Scheduler for Gallery Batch
+     */
+    public function process_gallery_batch( $force, $batch_number ) {
+        @set_time_limit( 300 );
+        
+        $status = get_option( 'wasgo_bulk_gallery_status', 'stopped' );
+        if ( $status === 'stopped' ) {
+            return;
+        }
+
+        $args = [
+            'post_type'      => 'product',
+            'posts_per_page' => 1, // Processes 1 product per batch, which then enqueues all its gallery items
+            'paged'          => $batch_number,
+            'orderby'        => 'ID',
+            'order'          => 'ASC',
+            'post_status'    => 'publish',
+            'fields'         => 'ids',
+            'meta_query'     => [
+                'relation' => 'AND',
+                [
+                    'key'     => '_product_image_gallery',
+                    'compare' => 'EXISTS'
+                ],
+                [
+                    'key'     => '_product_image_gallery',
+                    'value'   => '',
+                    'compare' => '!='
+                ],
+                [
+                    'key'     => '_product_image_gallery',
+                    'value'   => ' ',
+                    'compare' => '!='
+                ]
+            ]
+        ];
+
+        if ( ! $force ) {
+            $args['meta_query'][] = [
+                'key'     => 'wasgo_gallery_enhanced',
+                'compare' => 'NOT EXISTS',
+            ];
+        }
+
+        if ( class_exists( 'WASGO_Settings' ) && WASGO_Settings::should_exclude_outofstock() ) {
+            $args['meta_query'][] = [
+                'key'     => '_stock_status',
+                'value'   => 'outofstock',
+                'compare' => '!=',
+            ];
+        }
+
+        $products = get_posts( $args );
+
+        if ( empty( $products ) ) {
+            update_option( 'wasgo_bulk_gallery_status', 'finished' );
+            return;
+        }
+
+        $processed_count = get_option( 'wasgo_gallery_processed_count', 0 );
+
+        foreach ( $products as $product_id ) {
+            // Spawn Gallery Tasks for this product
+            self::enqueue_gallery_tasks( $product_id, $force );
+            $processed_count++;
+        }
+
+        update_option( 'wasgo_gallery_processed_count', $processed_count );
+
+        if ( count( $products ) >= 1 ) {
+            as_enqueue_async_action( 'wasgo_process_gallery_batch', [ $force, $batch_number + 1 ], 'wasgo-gallery-batch' );
+        } else {
+            update_option( 'wasgo_bulk_gallery_status', 'finished' );
+        }
+    }
+
     public function process_delete_batch( $batch_number ) {
         $status = get_option( 'wasgo_bulk_delete_status', 'stopped' );
         if ( $status === 'stopped' ) {
@@ -363,6 +534,9 @@ class WASGO_Batch_Processor {
             return;
         }
 
+        // Reset gallery enhanced flag on save to allow re-evaluation if items added
+        delete_post_meta( $post_id, 'wasgo_gallery_enhanced' );
+
         // Only explicitly process if this product hasn't successfully generated an image before
         $already_processed = get_post_meta( $post_id, 'prevent_ebp_image_sync', true );
         if ( ! $already_processed ) {
@@ -421,18 +595,28 @@ class WASGO_Batch_Processor {
             return;
         }
 
-        foreach ( $ids as $attachment_id ) {
-            // LOOP PROTECTION: Check if this attachment is already AI-generated
+        $needs_enhancement = false;
+        foreach ( $ids as $id ) {
+            // Check if this image was already enhanced by WASGO
             if ( ! $force ) {
-                $is_ai = get_post_meta( $attachment_id, '_wasgo_gallery_original_id', true );
-                if ( $is_ai ) {
-                    continue; // Skip already enhanced images to prevent infinite loops
+                $was_enhanced = get_post_meta( $id, '_wasgo_gallery_original_id', true );
+                if ( $was_enhanced ) {
+                    continue;
                 }
             }
 
+            $needs_enhancement = true;
             if ( function_exists( 'as_enqueue_async_action' ) ) {
-                as_enqueue_async_action( 'wasgo_process_gallery_item', [ $product_id, $attachment_id ], 'wasgo-gallery' );
+                as_enqueue_async_action( 'wasgo_process_gallery_item', [ $product_id, $id ], 'wasgo' );
             }
+        }
+
+        // If no items needed enhancement, mark the product as fully enhanced so bulk skips it next time
+        if ( ! $needs_enhancement && ! $force ) {
+            update_post_meta( $product_id, 'wasgo_gallery_enhanced', 1 );
+        } else {
+            // If we enqueued items OR forced them, clear the enhanced flag
+            delete_post_meta( $product_id, 'wasgo_gallery_enhanced' );
         }
     }
 
