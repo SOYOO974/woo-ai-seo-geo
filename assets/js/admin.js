@@ -10,7 +10,7 @@ jQuery(document).ready(function($) {
     let genProgressTimer = null;
 
     function triggerGeneration( resume ) {
-        let forceAll = $('#wasgo_force_all').is(':checked') ? '1' : '0';
+        let forceAll = $('input[name="wasgo_force_all"]:checked').val();
         let resumeFlag = resume ? '1' : '0';
 
         $('#wasgo-btn-start').attr('disabled', 'disabled');
@@ -269,7 +269,7 @@ jQuery(document).ready(function($) {
     let galProgressTimer = null;
 
     function triggerGallery( resume ) {
-        let force = $('#wasgo_gallery_force').is(':checked') ? '1' : '0';
+        let force = $('input[name="wasgo_gallery_force"]:checked').val();
         let resumeFlag = resume ? '1' : '0';
 
         $('#wasgo-gal-btn-start').attr('disabled', 'disabled');

@@ -237,12 +237,19 @@ class WASGO_Admin_Menu {
             <div class="wasgo-admin-card">
                 <h2>Bulk Image Generation</h2>
                 <p>Generate AI images for all products rapidly in the background.</p>
-                <p style="margin-top: 15px;">
-                    <label style="font-weight: 500;">
-                        <input type="checkbox" id="wasgo_force_all" value="1">
-                        Force generate for all <span style="font-weight: normal; color: #64748b;">(Regenerate even if an AI image already exists)</span>
+                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 15px;">
+                    <p style="margin: 0 0 10px 0; font-weight: 600; color: #1e293b;">Processing Mode:</p>
+                    <label style="display: block; margin-bottom: 8px; cursor: pointer;">
+                        <input type="radio" name="wasgo_force_all" value="0" checked> 
+                        <strong style="color: #4f46e5;">Smart Process</strong> 
+                        <span style="color: #64748b;">(Skip products already enhanced by AI)</span>
                     </label>
-                </p>
+                    <label style="display: block; cursor: pointer;">
+                        <input type="radio" name="wasgo_force_all" value="1"> 
+                        <strong style="color: #ef4444;">Full Regeneration</strong> 
+                        <span style="color: #64748b;">(Reprocess everything, even if done previously)</span>
+                    </label>
+                </div>
 
                 <div class="wasgo-buttons" style="margin-top: 25px;">
                     <button type="button" id="wasgo-btn-start" class="button button-primary button-large">Start / Resume</button>
@@ -265,12 +272,19 @@ class WASGO_Admin_Menu {
             <div class="wasgo-admin-card">
                 <h2>Bulk Gallery Enhancement</h2>
                 <p>Enhance the galleries of all products in the background. Does not affect featured images.</p>
-                <p style="margin-top: 15px;">
-                    <label style="font-weight: 500;">
-                        <input type="checkbox" id="wasgo_gallery_force" value="1">
-                        Force generate for all gallery images <span style="font-weight: normal; color: #64748b;">(Regenerate even if gallery was enhanced previously)</span>
+                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 15px;">
+                    <p style="margin: 0 0 10px 0; font-weight: 600; color: #1e293b;">Processing Mode:</p>
+                    <label style="display: block; margin-bottom: 8px; cursor: pointer;">
+                        <input type="radio" name="wasgo_gallery_force" value="0" checked> 
+                        <strong style="color: #4f46e5;">Smart Process</strong> 
+                        <span style="color: #64748b;">(Skip galleries already enhanced by AI)</span>
                     </label>
-                </p>
+                    <label style="display: block; cursor: pointer;">
+                        <input type="radio" name="wasgo_gallery_force" value="1"> 
+                        <strong style="color: #ef4444;">Full Regeneration</strong> 
+                        <span style="color: #64748b;">(Reprocess everything, even if done previously)</span>
+                    </label>
+                </div>
 
                 <div class="wasgo-buttons" style="margin-top: 25px;">
                     <button type="button" id="wasgo-gal-btn-start" class="button button-primary button-large">Start / Resume Gallery Enhancement</button>
