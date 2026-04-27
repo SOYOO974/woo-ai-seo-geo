@@ -218,6 +218,13 @@ class WASGO_Admin_Menu {
                         <span class="description">Automatically enqueue new products to Action Scheduler for AI enhancement upon creation/publish.</span>
                     </td>
                 </tr>
+                <tr>
+                    <th><label for="wasgo_enhance_gallery">Enhance Product Gallery</label></th>
+                    <td>
+                        <input type="checkbox" name="wasgo_enhance_gallery" id="wasgo_enhance_gallery" value="1" <?php checked( 1, get_option( 'wasgo_enhance_gallery', 0 ) ); ?> />
+                        <span class="description">If enabled, every image in the product gallery will be automatically enhanced as separate background tasks.</span>
+                    </td>
+                </tr>
             </table>
             <?php submit_button( 'Save Settings' ); ?>
         </form>

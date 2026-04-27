@@ -50,19 +50,15 @@ class WASGO_AJAX {
         check_ajax_referer( 'wasgo_ajax_nonce', 'nonce' );
         
         $status = get_option( 'wasgo_bulk_status', 'stopped' );
-        $processed = (int) get_option( 'wasgo_processed_count', 0 );
         $total = (int) get_option( 'wasgo_total_to_process', 0 );
+        $processed = (int) get_option( 'wasgo_processed_count', 0 );
         
-        // Self-healing zombie tasks & overflow safeguards
+        // Self-healing: if running but counts are done, mark finished
         if ( $status === 'running' ) {
             if ( $total == 0 || ( $total > 0 && $processed >= $total ) ) {
                 $status = 'finished';
                 update_option( 'wasgo_bulk_status', 'finished' );
             }
-        }
-
-        if ( $processed > $total ) {
-            $processed = $total; // Clamp UI to 100%
         }
 
         wp_send_json_success( [
@@ -128,6 +124,12 @@ class WASGO_AJAX {
         $result = WASGO_Image_Generator::process_product( $post_id, true );
 
         if ( $result === true ) {
+            // If gallery enhancement is enabled, enqueue gallery tasks (Force-mode, force = true)
+            if ( class_exists( 'WASGO_Settings' ) && WASGO_Settings::should_enhance_gallery() ) {
+                if ( class_exists( 'WASGO_Batch_Processor' ) ) {
+                    WASGO_Batch_Processor::enqueue_gallery_tasks( $post_id, true );
+                }
+            }
             wp_send_json_success( 'Image updated.' );
         } else {
             wp_send_json_error( $result );
