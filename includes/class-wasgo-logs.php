@@ -29,7 +29,7 @@ class WASGO_Logs {
     /**
      * Logs an error for a specific product
      */
-    public static function log_error( $product_id, $message ) {
+    public static function log_error( $product_id, $message, $type = 'image' ) {
         $product_title = get_the_title( $product_id );
         
         $post_id = wp_insert_post( [
@@ -37,10 +37,11 @@ class WASGO_Logs {
             'post_status' => 'publish',
             'post_type'   => 'wasgo_log'
         ] );
-
+ 
         if ( $post_id && ! is_wp_error( $post_id ) ) {
             update_post_meta( $post_id, 'failed_product_id', $product_id );
             update_post_meta( $post_id, 'error_message', $message );
+            update_post_meta( $post_id, '_wasgo_log_type', $type );
         }
     }
 

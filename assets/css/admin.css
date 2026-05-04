@@ -276,3 +276,68 @@
 .wasgo-bulk-wrapper {
     max-width: 800px;
 }
+
+/* Sub Tabs Styling */
+.wasgo-sub-tab-wrapper {
+    margin-bottom: 30px;
+    display: flex;
+    gap: 10px;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 15px;
+}
+.wasgo-sub-tab {
+    text-decoration: none;
+    color: #64748b;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+.wasgo-sub-tab:hover {
+    background: #f1f5f9;
+    color: #4f46e5;
+}
+.wasgo-sub-tab-active {
+    background: #4f46e5;
+    color: #ffffff !important;
+    box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+}
+
+/* Useful Specs Selection */
+.wasgo-specs-title {
+    font-weight: 700;
+    color: #1e293b;
+    margin: 25px 0 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.wasgo-specs-container {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    padding: 20px;
+    border-radius: 10px;
+    background: #f8fafc;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+.wasgo-spec-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #475569;
+    cursor: pointer;
+    padding: 4px 0;
+}
+.wasgo-spec-item input[type="checkbox"] {
+    margin: 0;
+}
+.wasgo-spec-item:hover {
+    color: #1e293b;
+}
+

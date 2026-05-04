@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce AI SEO & GEO Optimization
  * Plugin URI:  https://github.com/SOYOO974/woo-ai-seo-geo.git
  * Description: Integrates Gemini 3.1 Flash Image API to regenerate product images and perform bulk optimizations.
- * Version: 2.1
+ * Version: 2.2
  * Author:      Soyoo.re
  * Author URI:  https://www.soyoo.re/
  * Text Domain: wasgo
@@ -29,7 +29,7 @@ $myUpdateChecker->setBranch('main');
 //Optional: If you're using a private repository, specify the access token like this:
 $myUpdateChecker->setAuthentication('WASGO_GITHUB_TOKEN_REDACTED');
 
-define( 'WASGO_VERSION', '2.1' );
+define( 'WASGO_VERSION', '2.2' );
 define( 'WASGO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WASGO_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -51,6 +51,12 @@ function wasgo_init_plugin() {
     require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-ajax.php';
     require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-admin-menu.php';
     require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-meta-boxes.php';
+    require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-content-utility.php';
+    require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-content-generator.php';
+    require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-content-validator.php';
+    require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-content-orchestrator.php';
+    require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-content-batch-processor.php';
+    require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-content-ajax.php';
     
     // Initialize subclasses
     new WASGO_Settings();
@@ -60,6 +66,8 @@ function wasgo_init_plugin() {
     new WASGO_AJAX();
     new WASGO_Admin_Menu();
     new WASGO_Meta_Boxes();
+    new WASGO_Content_Batch_Processor();
+    new WASGO_Content_AJAX();
 }
 
 function wasgo_woocommerce_missing_notice() {

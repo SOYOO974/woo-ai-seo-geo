@@ -434,5 +434,184 @@ jQuery(document).ready(function($) {
             $('.wasgo-compress-dependency').hide();
         }
     });
+    // -------------------------------------------------------------
+    // Bulk Content Generation Logic
+    // -------------------------------------------------------------
+    let contentProgressTimer = null;
+
+    function triggerContentGeneration( resume ) {
+        let types = [];
+        $('input[name="wasgo_content_bulk_types[]"]:checked').each(function() {
+            types.push($(this).val());
+        });
+        let mode = $('input[name="wasgo_content_bulk_mode"]:checked').val();
+        let resumeFlag = resume ? '1' : '0';
+
+        if (types.length === 0) {
+            alert('Please select at least one content type to generate.');
+            return;
+        }
+
+        $('#wasgo-content-btn-start').attr('disabled', 'disabled');
+        $('#wasgo-content-btn-restart').attr('disabled', 'disabled');
+        $('#wasgo-content-btn-stop').removeAttr('disabled');
+        
+        $('#wasgo-content-bulk-notice').html('Calculating total products...');
+        
+        if (!resume) {
+            $('#wasgo-content-progress-bar-fill').css('width', '0%');
+            $('#wasgo-content-progress-text').text('0 / 0');
+        }
+
+        $.ajax({
+            url: wasgo_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'wasgo_content_start',
+                nonce: wasgo_ajax.nonce,
+                types: types,
+                mode: mode,
+                resume: resumeFlag
+            },
+            success: function(response) {
+                if(response.success) {
+                    $('#wasgo-content-bulk-notice').html('<span style="color:green;">Generation started!</span>');
+                    $('#wasgo-content-progress-container').slideDown();
+                    startContentPolling();
+                } else {
+                    $('#wasgo-content-bulk-notice').html('<span style="color:red;">' + response.data.message + '</span>');
+                    $('#wasgo-content-btn-start').removeAttr('disabled');
+                    $('#wasgo-content-btn-restart').removeAttr('disabled');
+                    $('#wasgo-content-btn-stop').attr('disabled', 'disabled');
+                }
+            }
+        });
+    }
+
+    $('#wasgo-content-btn-start').on('click', function(e) {
+        e.preventDefault();
+        triggerContentGeneration(true);
+    });
+
+    $('#wasgo-content-btn-restart').on('click', function(e) {
+        e.preventDefault();
+        if(!confirm('Are you sure you want to RESTART content generation?')) return;
+        triggerContentGeneration(false);
+    });
+
+    $('#wasgo-content-btn-stop').on('click', function(e) {
+        e.preventDefault();
+        $(this).attr('disabled', 'disabled');
+        $.ajax({
+            url: wasgo_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'wasgo_content_stop',
+                nonce: wasgo_ajax.nonce
+            },
+            success: function(response) {
+                $('#wasgo-content-bulk-notice').html('<span style="color:orange;">Processing paused.</span>');
+                $('#wasgo-content-status-text').text('Paused');
+                $('#wasgo-content-btn-start').removeAttr('disabled');
+                $('#wasgo-content-btn-restart').removeAttr('disabled');
+                if(contentProgressTimer) clearInterval(contentProgressTimer);
+            }
+        });
+    });
+
+    function startContentPolling() {
+        if(contentProgressTimer) clearInterval(contentProgressTimer);
+        contentProgressTimer = setInterval(function() {
+            $.ajax({
+                url: wasgo_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'wasgo_content_progress',
+                    nonce: wasgo_ajax.nonce
+                },
+                success: function(response) {
+                    if(response.success) {
+                        let data = response.data;
+                        let processed = parseInt(data.processed);
+                        let total = parseInt(data.total);
+                        let status = data.status;
+
+                        if(total > 0) {
+                            let percentage = Math.round((processed / total) * 100);
+                            $('#wasgo-content-progress-bar-fill').css('width', percentage + '%');
+                            $('#wasgo-content-progress-text').text(processed + ' / ' + total + ' (' + percentage + '%)');
+                        }
+
+                        if(status === 'finished') {
+                            $('#wasgo-content-status-text').text('Finished!');
+                            $('#wasgo-content-bulk-notice').html('<span style="color:green;">Bulk content generation complete!</span>');
+                            $('#wasgo-content-btn-stop').attr('disabled', 'disabled');
+                            $('#wasgo-content-btn-start').removeAttr('disabled');
+                            $('#wasgo-content-btn-restart').removeAttr('disabled');
+                            clearInterval(contentProgressTimer);
+                        } else if(status === 'stopped') {
+                            $('#wasgo-content-status-text').text('Paused');
+                            $('#wasgo-content-btn-stop').attr('disabled', 'disabled');
+                            $('#wasgo-content-btn-start').removeAttr('disabled');
+                            $('#wasgo-content-btn-restart').removeAttr('disabled');
+                            clearInterval(contentProgressTimer);
+                        } else {
+                            $('#wasgo-content-status-text').text('Processing...');
+                        }
+                    }
+                }
+            });
+        }, 4000);
+    }
+
+    // Auto-resume check for content
+    $.post(wasgo_ajax.ajax_url, { action: 'wasgo_content_progress', nonce: wasgo_ajax.nonce }, function(response) {
+        if(response.success && response.data.status === 'running') {
+            $('#wasgo-content-progress-container').slideDown();
+            $('#wasgo-content-btn-start').attr('disabled', 'disabled');
+            $('#wasgo-content-btn-restart').attr('disabled', 'disabled');
+            $('#wasgo-content-btn-stop').removeAttr('disabled');
+            startContentPolling();
+        }
+    });
+
+    // -------------------------------------------------------------
+    // Review Queue Actions
+    // -------------------------------------------------------------
+    $(document).on('click', '.wasgo-review-action', function(e) {
+        e.preventDefault();
+        let $btn = $(this);
+        let action = $btn.data('action');
+        let pid = $btn.data('pid');
+        let type = $btn.data('type');
+        let $row = $('#review-row-' + pid + '-' + type);
+
+        $btn.attr('disabled', 'disabled').text('...');
+
+        $.ajax({
+            url: wasgo_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'wasgo_content_review_action',
+                nonce: wasgo_ajax.nonce,
+                review_action: action,
+                pid: pid,
+                type: type
+            },
+            success: function(response) {
+                if (response.success) {
+                    $row.fadeOut(300, function() {
+                        $(this).remove();
+                        if ($('#wasgo-content-review-body tr').length === 0) {
+                            location.reload(); 
+                        }
+                    });
+                } else {
+                    alert('Error: ' + response.data);
+                    $btn.removeAttr('disabled').text(action === 'approve' ? 'Approve' : 'Discard');
+                }
+            }
+        });
+    });
 
 });
