@@ -59,4 +59,21 @@ class WASGO_Content_Utility {
 
         return get_post_meta( $product_id, $meta_key, true );
     }
+
+    /**
+     * Get product categories as a formatted string
+     */
+    public static function get_product_categories_string( $product_id ) {
+        $terms = get_the_terms( $product_id, 'product_cat' );
+        if ( is_wp_error( $terms ) || empty( $terms ) ) {
+            return '';
+        }
+
+        $categories = [];
+        foreach ( $terms as $term ) {
+            $categories[] = $term->name;
+        }
+
+        return implode( ', ', $categories );
+    }
 }

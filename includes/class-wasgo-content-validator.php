@@ -32,15 +32,23 @@ class WASGO_Content_Validator {
             }
         }
         
+        $target_lang = WASGO_Settings::get_content_language();
+        $include_cats = WASGO_Settings::should_include_categories();
+        $categories = $include_cats ? WASGO_Content_Utility::get_product_categories_string( $product_id ) : '';
+
         $validation_prompt = "You are a critical content validator. Your job is to verify that the AI-generated product content is 100% accurate and does NOT contain hallucinations.\n\n";
         $validation_prompt .= "### PRODUCT CONTEXT:\n";
         $validation_prompt .= "Title: $product_title\n";
+        if ( ! empty( $categories ) ) {
+            $validation_prompt .= "Categories: $categories\n";
+        }
         if ( ! empty( $context['specs'] ) ) {
             $validation_prompt .= "Verified Specs:\n";
             foreach ( $context['specs'] as $label => $val ) {
                 $validation_prompt .= "- $label: $val\n";
             }
         }
+        $validation_prompt .= "Target Language: $target_lang\n";
         
         $validation_prompt .= "\n### GENERATION CONTEXT:\n";
         $validation_prompt .= "Content Type: " . $context['type'] . "\n";
@@ -50,11 +58,13 @@ class WASGO_Content_Validator {
         $validation_prompt .= wp_json_encode( $generated_json, JSON_PRETTY_PRINT ) . "\n\n";
         
         $validation_prompt .= "### YOUR INSTRUCTIONS:\n";
-        $validation_prompt .= "1. **Distinguish Flow from Hallucination**: Do NOT flag standard 'Copywriting Bridge Words' (e.g., 'confort', 'protection', 'dextérité', 'polyvalent') if they are logically inherent to the product category (e.g., gloves protect hands). These are necessary for a natural tone.\n";
-        $validation_prompt .= "2. **Flag Hard Hallucinations**: You MUST flag claims that are explicitly contradicted by specs (e.g., claiming 'Waterproof' when specs say 'Non') or technical specs not mentioned anywhere (e.g., claiming '3000 lumens' if not in specs).\n";
-        $validation_prompt .= "3. **Visual Audit**: Use the Product Image to confirm colors, materials, and basic type. Flag if the text describes a red product but the image is blue.\n";
-        $validation_prompt .= "4. **Strict Interpretations**: Ensure no technical codes or model numbers were added unless present in the input.\n";
-        $validation_prompt .= "5. Output your decision in a strict JSON format.";
+        $validation_prompt .= "1. **Language Check**: Ensure the content is written in $target_lang. If it is in the wrong language, set status to 'fail' with an appropriate issue message.\n";
+        $validation_prompt .= "2. **Category/Type Check**: Use the Title and Categories ($categories) to ensure the product type is correct. If the AI describes a completely different product type, set status to 'fail'.\n";
+        $validation_prompt .= "3. **Distinguish Flow from Hallucination**: Do NOT flag standard 'Copywriting Bridge Words' (e.g., 'confort', 'protection', 'dextérité', 'polyvalent') if they are logically inherent to the product category. These are necessary for a natural tone.\n";
+        $validation_prompt .= "4. **Flag Hard Hallucinations**: You MUST flag claims that are explicitly contradicted by specs or technical specs not mentioned anywhere.\n";
+        $validation_prompt .= "5. **Visual Audit**: Use the Product Image to confirm colors, materials, and basic type.\n";
+        $validation_prompt .= "6. **Strict Interpretations**: Ensure no technical codes or model numbers were added unless present in the input.\n";
+        $validation_prompt .= "7. Output your decision in a strict JSON format.";
 
         $json_schema = [
             'name'   => 'content_validation_result',

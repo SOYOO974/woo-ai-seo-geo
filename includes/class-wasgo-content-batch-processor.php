@@ -99,6 +99,11 @@ class WASGO_Content_Batch_Processor {
         if ( $mode === 'smart' ) {
             $filtered = [];
             foreach ( $products as $pid ) {
+                // Skip if product is already in the review queue
+                if ( get_post_meta( $pid, '_wasgo_needs_review', true ) ) {
+                    continue;
+                }
+
                 $needs_work = false;
                 foreach ( $types as $type ) {
                     $val = '';
@@ -172,6 +177,11 @@ class WASGO_Content_Batch_Processor {
             $target_product = $products[0];
         } else {
             foreach ( $products as $pid ) {
+                // Skip if product is already in the review queue
+                if ( get_post_meta( $pid, '_wasgo_needs_review', true ) ) {
+                    continue;
+                }
+
                 foreach ( $types as $type ) {
                     $val = '';
                     if ( $type === 'short' ) $val = get_post_field( 'post_excerpt', $pid );
@@ -194,7 +204,9 @@ class WASGO_Content_Batch_Processor {
         }
 
         // Process the product (Ignore global disabled toggles for bulk)
+        update_post_meta( $target_product, '_wasgo_processing_content', time() );
         $result = WASGO_Content_Orchestrator::process_product( $target_product, $types, true );
+        delete_post_meta( $target_product, '_wasgo_processing_content' );
 
         $processed_count = get_option( 'wasgo_content_processed', 0 );
         update_option( 'wasgo_content_processed', $processed_count + 1 );
@@ -211,12 +223,27 @@ class WASGO_Content_Batch_Processor {
         if ( ! get_option( 'wasgo_content_auto_process', 0 ) ) return;
         if ( $post->post_status !== 'publish' ) return;
 
-        // Only process if it hasn't been processed yet (or user just created it)
-        // We'll let the orchestrator handle the "Disabled" toggles
-        as_enqueue_async_action( 'wasgo_process_single_content', [ $post_id, ['short', 'long', 'title', 'desc'] ], 'wasgo-content' );
+        // 1. Prevent loop if we are currently mid-process for this product
+        if ( get_post_meta( $post_id, '_wasgo_processing_content', true ) ) {
+            return;
+        }
+
+        // 2. Prevent duplicate scheduling if an action is already pending
+        $args = [ $post_id, ['short', 'long', 'title', 'desc'] ];
+        if ( as_has_scheduled_action( 'wasgo_process_single_content', $args, 'wasgo-content' ) ) {
+            return;
+        }
+
+        as_enqueue_async_action( 'wasgo_process_single_content', $args, 'wasgo-content' );
     }
 
     public function process_single_content( $product_id, $types ) {
+        // Set lock
+        update_post_meta( $product_id, '_wasgo_processing_content', time() );
+        
         WASGO_Content_Orchestrator::process_product( $product_id, $types );
+        
+        // Release lock
+        delete_post_meta( $product_id, '_wasgo_processing_content' );
     }
 }

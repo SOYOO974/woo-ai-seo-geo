@@ -52,6 +52,8 @@ class WASGO_Settings {
         register_setting( 'wasgo_content_settings_group', 'wasgo_content_out_of_stock', [ 'sanitize_callback' => 'absint' ] );
         register_setting( 'wasgo_content_settings_group', 'wasgo_content_auto_process', [ 'sanitize_callback' => 'absint' ] );
         register_setting( 'wasgo_content_settings_group', 'wasgo_content_image_required', [ 'sanitize_callback' => 'absint' ] );
+        register_setting( 'wasgo_content_settings_group', 'wasgo_content_language', [ 'sanitize_callback' => 'sanitize_text_field' ] );
+        register_setting( 'wasgo_content_settings_group', 'wasgo_content_include_categories', [ 'sanitize_callback' => 'absint' ] );
     }
 
     public static function get_api_key() {
@@ -96,5 +98,13 @@ class WASGO_Settings {
 
     public static function should_enhance_gallery() {
         return (bool) get_option( 'wasgo_enhance_gallery', 0 );
+    }
+
+    public static function get_content_language() {
+        return get_option( 'wasgo_content_language', 'English' );
+    }
+
+    public static function should_include_categories() {
+        return (bool) get_option( 'wasgo_content_include_categories', 0 );
     }
 }

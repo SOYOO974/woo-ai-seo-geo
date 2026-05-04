@@ -14,6 +14,7 @@ class WASGO_Content_AJAX {
         add_action( 'wp_ajax_wasgo_content_stop', [ $this, 'stop_bulk' ] );
         add_action( 'wp_ajax_wasgo_content_progress', [ $this, 'get_progress' ] );
         add_action( 'wp_ajax_wasgo_content_review_action', [ $this, 'handle_review_action' ] );
+        add_action( 'wp_ajax_wasgo_generate_single_content', [ $this, 'generate_single' ] );
     }
 
     public function handle_review_action() {
@@ -79,5 +80,22 @@ class WASGO_Content_AJAX {
             'processed' => $processed,
             'total'     => $total
         ] );
+    }
+    public function generate_single() {
+        check_ajax_referer( 'wasgo_ajax_nonce', 'nonce' );
+
+        $pid   = isset( $_POST['post_id'] ) ? intval( $_POST['post_id'] ) : 0;
+        $types = isset( $_POST['types'] ) ? array_map( 'sanitize_text_field', $_POST['types'] ) : [];
+
+        if ( ! $pid || empty( $types ) ) {
+            wp_send_json_error( 'Invalid request.' );
+        }
+
+        // Process with $ignore_disabled = true to bypass global settings
+        update_post_meta( $pid, '_wasgo_processing_content', time() );
+        $result = WASGO_Content_Orchestrator::process_product( $pid, $types, true );
+        delete_post_meta( $pid, '_wasgo_processing_content' );
+
+        wp_send_json_success( $result );
     }
 }

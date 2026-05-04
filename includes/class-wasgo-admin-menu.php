@@ -517,11 +517,11 @@ class WASGO_Admin_Menu {
                 </h3>
                 
                 <p class="description" style="margin-bottom:15px;">
-                    Define the custom instructions for this content type. The system automatically includes the <strong>Product Title</strong> and selected <strong>Useful Specs</strong> in the request.
+                    Define the custom instructions for this content type. The system automatically includes the <strong>Product Title</strong>, <strong>Categories</strong> (if enabled), and selected <strong>Useful Specs</strong> in the request.
                 </p>
 
                 <textarea name="<?php echo $current['prompt']; ?>" rows="8" 
-                          placeholder="e.g. Write a catchy and professional <?php echo strtolower($tabs[$sub_tab]); ?> for [PRODUCT_TITLE]..."><?php echo esc_textarea( get_option( $current['prompt'] ) ); ?></textarea>
+                          placeholder="e.g. Write a catchy and professional <?php echo strtolower($tabs[$sub_tab]); ?>..."><?php echo esc_textarea( get_option( $current['prompt'] ) ); ?></textarea>
 
                 <div class="wasgo-specs-title">
                     <span class="dashicons dashicons-list-view"></span>
@@ -603,6 +603,31 @@ class WASGO_Admin_Menu {
                             <span class="description">Automatically generate content for new products upon creation/publish.</span>
                         </td>
                     </tr>
+                    <tr>
+                        <th><label for="wasgo_content_language">Target Language</label></th>
+                        <td>
+                            <select name="wasgo_content_language" id="wasgo_content_language">
+                                <?php 
+                                $langs = [
+                                    'English', 'French', 'Arabic', 'Spanish', 'German', 'Italian', 'Portuguese', 'Dutch', 'Russian', 'Chinese (Simplified)',
+                                    'Japanese', 'Korean', 'Turkish', 'Polish', 'Swedish', 'Norwegian', 'Danish', 'Finnish', 'Greek', 'Czech',
+                                    'Hungarian', 'Romanian', 'Bulgarian', 'Hindi', 'Bengali', 'Thai', 'Vietnamese', 'Indonesian', 'Malay', 'Ukrainian'
+                                ];
+                                $current_lang = WASGO_Settings::get_content_language();
+                                foreach ( $langs as $lang ) : ?>
+                                    <option value="<?php echo esc_attr( $lang ); ?>" <?php selected( $lang, $current_lang ); ?>><?php echo esc_html( $lang ); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description">Select the language for all AI-generated content.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="wasgo_content_include_categories">Context Enrichment</label></th>
+                        <td>
+                            <input type="checkbox" name="wasgo_content_include_categories" id="wasgo_content_include_categories" value="1" <?php checked( 1, get_option( 'wasgo_content_include_categories', 0 ) ); ?> />
+                            <span class="description">Include product categories in the AI context for better accuracy.</span>
+                        </td>
+                    </tr>
                 </table>
                 <div style="margin-top: 20px;">
                     <?php submit_button( 'Save Content Settings' ); ?>
@@ -663,7 +688,7 @@ class WASGO_Admin_Menu {
                         <strong id="wasgo-content-progress-text" style="color: #475569;">0 / 0</strong>
                     </div>
                     <div class="wasgo-progress-bar-bg">
-                        <div id="wasgo-content-progress-bar-fill" style="width: 0%; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%) !important;"></div>
+                        <div id="wasgo-content-progress-bar-fill" style="width: 0%; height: 100%; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);"></div>
                     </div>
                 </div>
                 <div id="wasgo-content-bulk-notice" style="margin-top:20px;"></div>

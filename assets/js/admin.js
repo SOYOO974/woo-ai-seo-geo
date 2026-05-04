@@ -475,6 +475,14 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if(response.success) {
+                    let total = parseInt(response.data.total);
+                    if (total === 0) {
+                        $('#wasgo-content-bulk-notice').html('<span style="color:orange;">No product to processing remaining.</span>');
+                        $('#wasgo-content-btn-start').removeAttr('disabled');
+                        $('#wasgo-content-btn-restart').removeAttr('disabled');
+                        $('#wasgo-content-btn-stop').attr('disabled', 'disabled');
+                        return;
+                    }
                     $('#wasgo-content-bulk-notice').html('<span style="color:green;">Generation started!</span>');
                     $('#wasgo-content-progress-container').slideDown();
                     startContentPolling();
@@ -543,8 +551,14 @@ jQuery(document).ready(function($) {
                         }
 
                         if(status === 'finished') {
+                            if (total > 0) {
+                                $('#wasgo-content-progress-bar-fill').css('width', '100%');
+                                $('#wasgo-content-progress-text').text(total + ' / ' + total + ' (100%)');
+                                $('#wasgo-content-bulk-notice').html('<span style="color:green;">Bulk content generation complete!</span>');
+                            } else {
+                                $('#wasgo-content-bulk-notice').html('<span style="color:orange;">No product to processing remaining.</span>');
+                            }
                             $('#wasgo-content-status-text').text('Finished!');
-                            $('#wasgo-content-bulk-notice').html('<span style="color:green;">Bulk content generation complete!</span>');
                             $('#wasgo-content-btn-stop').attr('disabled', 'disabled');
                             $('#wasgo-content-btn-start').removeAttr('disabled');
                             $('#wasgo-content-btn-restart').removeAttr('disabled');
@@ -561,7 +575,7 @@ jQuery(document).ready(function($) {
                     }
                 }
             });
-        }, 4000);
+        }, 2000);
     }
 
     // Auto-resume check for content

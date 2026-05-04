@@ -214,7 +214,7 @@
     height: 28px !important;
 }
 
-.wasgo-progress-bar-fill, #wasgo-progress-bar-fill {
+.wasgo-progress-bar-fill, #wasgo-progress-bar-fill, #wasgo-content-progress-bar-fill {
     background: linear-gradient(90deg, #4f46e5 0%, #9333ea 100%) !important;
     border-radius: 12px !important;
     box-shadow: 0 2px 6px rgba(147, 51, 234, 0.3);
@@ -241,7 +241,7 @@
     height: 100%;
 }
 
-#wasgo-progress-bar-fill::after, #wasgo-del-progress-bar-fill::after, #wasgo-gal-progress-bar-fill::after {
+#wasgo-progress-bar-fill::after, #wasgo-del-progress-bar-fill::after, #wasgo-gal-progress-bar-fill::after, #wasgo-content-progress-bar-fill::after {
     content: "";
     position: absolute;
     top: 0;

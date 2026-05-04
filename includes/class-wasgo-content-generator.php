@@ -32,8 +32,17 @@ class WASGO_Content_Generator {
             $image_url = wp_get_attachment_url( $image_id );
         }
 
+        $target_lang = WASGO_Settings::get_content_language();
+        $include_cats = WASGO_Settings::should_include_categories();
+        $categories = $include_cats ? WASGO_Content_Utility::get_product_categories_string( $product_id ) : '';
+
         $sections_to_generate = [];
-        $full_prompt = "You are an expert WooCommerce SEO copywriter. Generate high-quality content for the product: \"$product_title\".\n\n";
+        $full_prompt = "### PRODUCT IDENTITY:\n";
+        $full_prompt .= "Name: $product_title\n";
+        if ( ! empty( $categories ) ) {
+            $full_prompt .= "Categories: $categories\n";
+        }
+        $full_prompt .= "Target Language: $target_lang\n\n";
 
         foreach ( $content_types as $type ) {
             $prompt_template = get_option( "wasgo_content_{$type}_prompt", '' );
@@ -56,7 +65,7 @@ class WASGO_Content_Generator {
 
             $type_label = str_replace( '_', ' ', $type );
             $full_prompt .= "### Instructions for $type_label:\n";
-            $full_prompt .= str_replace( '[PRODUCT_TITLE]', $product_title, $prompt_template ) . "\n";
+            $full_prompt .= $prompt_template . "\n";
             if ( ! empty( $specs_content ) ) {
                 $full_prompt .= "Use the following verified product specs for this section:\n$specs_content\n";
             }
@@ -104,7 +113,8 @@ class WASGO_Content_Generator {
             ]
         ];
 
-        $system_instruction = "You are an expert WooCommerce SEO agent. Return the requested content fields in a structured format based on the title and specs provided. 
+        $system_instruction = "You are an expert WooCommerce SEO agent. Return the requested content fields in a structured format based on the product identity and specs provided. 
+        IMPORTANT: You MUST generate all content in the specified Target Language: $target_lang.
         If you cannot generate a field accurately, use 'UNKNOWN'. 
         Do not hallucinate facts not present in the title or specs.";
 

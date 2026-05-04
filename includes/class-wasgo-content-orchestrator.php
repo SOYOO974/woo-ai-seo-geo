@@ -138,6 +138,26 @@ class WASGO_Content_Orchestrator {
                 self::update_seo_field( $product_id, 'description', $content );
                 break;
         }
+
+        // Mark as AI generated
+        $ai_fields = get_post_meta( $product_id, '_wasgo_ai_fields', true );
+        if ( ! is_array( $ai_fields ) ) $ai_fields = [];
+        if ( ! in_array( $type, $ai_fields ) ) {
+            $ai_fields[] = $type;
+            update_post_meta( $product_id, '_wasgo_ai_fields', $ai_fields );
+        }
+
+        // Remove from review queue if it was there
+        $review_data = get_post_meta( $product_id, '_wasgo_content_review', true );
+        if ( is_array( $review_data ) && isset( $review_data[$type] ) ) {
+            unset( $review_data[$type] );
+            if ( empty( $review_data ) ) {
+                delete_post_meta( $product_id, '_wasgo_content_review' );
+                delete_post_meta( $product_id, '_wasgo_needs_review' );
+            } else {
+                update_post_meta( $product_id, '_wasgo_content_review', $review_data );
+            }
+        }
     }
 
     /**

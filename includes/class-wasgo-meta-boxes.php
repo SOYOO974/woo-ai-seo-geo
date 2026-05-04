@@ -23,6 +23,129 @@ class WASGO_Meta_Boxes {
             'side',
             'high'
         );
+
+        add_meta_box(
+            'wasgo_ai_content_controls',
+            'AI Content Suite',
+            [ $this, 'render_content_ai_meta_box' ],
+            'product',
+            'side',
+            'high'
+        );
+    }
+
+    public function render_content_ai_meta_box( $post ) {
+        $pid = $post->ID;
+        $types = [
+            'short' => 'Short Description',
+            'long'  => 'Long Description',
+            'title' => 'Meta Title',
+            'desc'  => 'Meta Description'
+        ];
+
+        // Get AI generated status
+        $ai_meta = get_post_meta( $pid, '_wasgo_ai_fields', true );
+        if ( ! is_array( $ai_meta ) ) $ai_meta = [];
+
+        // Check review status
+        $review_data = get_post_meta( $pid, '_wasgo_content_review', true );
+        if ( ! is_array( $review_data ) ) $review_data = [];
+
+        ?>
+        <div class="wasgo-content-meta-box">
+            <?php foreach ( $types as $key => $label ) : 
+                $is_ai = in_array( $key, $ai_meta );
+                $needs_review = isset( $review_data[$key] );
+                
+                $badge_text = '';
+                $badge_color = '';
+                
+                if ( $needs_review ) {
+                    $badge_text = 'Needs Review';
+                    $badge_color = '#f59e0b'; // Amber
+                } elseif ( $is_ai ) {
+                    $badge_text = 'AI Optimized';
+                    $badge_color = '#10b981'; // Green
+                }
+            ?>
+                <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" class="wasgo-single-gen-type" value="<?php echo $key; ?>" checked>
+                        <span><?php echo $label; ?></span>
+                    </label>
+                    <?php if ( $badge_text ) : ?>
+                        <span style="font-size: 10px; padding: 2px 6px; border-radius: 10px; background: <?php echo $badge_color; ?>15; color: <?php echo $badge_color; ?>; border: 1px solid <?php echo $badge_color; ?>40; font-weight: 600;">
+                            <?php echo $badge_text; ?>
+                        </span>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+
+            <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+                <button type="button" id="wasgo-generate-single-content-btn" class="button button-primary" style="width: 100%; height: 35px; border-radius: 6px;">
+                    Generate Selected
+                </button>
+                <div id="wasgo-single-content-status" style="margin-top: 10px; font-size: 12px; text-align: center; color: #64748b; display: none;">
+                    <span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span>
+                    <span class="status-msg">Processing...</span>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        jQuery(document).ready(function($) {
+            $('#wasgo-generate-single-content-btn').on('click', function(e) {
+                e.preventDefault();
+                
+                var types = [];
+                $('.wasgo-single-gen-type:checked').each(function() {
+                    types.push($(this).val());
+                });
+
+                if (types.length === 0) {
+                    alert('Please select at least one content type.');
+                    return;
+                }
+
+                if (!confirm('This will use AI to generate the selected content. Existing AI content will be overwritten. Continue?')) return;
+
+                var $btn = $(this);
+                var $status = $('#wasgo-single-content-status');
+                
+                $btn.attr('disabled', 'disabled');
+                $status.fadeIn();
+
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'wasgo_generate_single_content',
+                        post_id: <?php echo $pid; ?>,
+                        types: types,
+                        nonce: '<?php echo wp_create_nonce("wasgo_ajax_nonce"); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $status.find('.status-msg').text('Success! Refreshing...');
+                            setTimeout(function() {
+                                location.reload();
+                            }, 1000);
+                        } else {
+                            alert('Error: ' + response.data);
+                            $btn.removeAttr('disabled');
+                            $status.hide();
+                        }
+                    },
+                    error: function() {
+                        alert('Server error occurred.');
+                        $btn.removeAttr('disabled');
+                        $status.hide();
+                    }
+                });
+            });
+        });
+        </script>
+        <?php
     }
 
     public function render_ai_controls_meta_box( $post ) {
