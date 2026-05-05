@@ -650,8 +650,20 @@ jQuery(document).ready(function($) {
             imageHtml = '<div class="wasgo-terminal-image warning"><span class="dashicons dashicons-warning"></span><span>⚠️ No Image Found - Vision Analysis will be skipped</span></div>';
         }
 
+        // 1. Vision Status Logic
+        let visionStatus = '';
+        if (sample.req_img) {
+            if (sample.image) {
+                visionStatus = 'ENABLED';
+            } else {
+                visionStatus = 'Enabled (No Featured Image found for this product)';
+            }
+        } else {
+            visionStatus = 'DISABLED (Image Required setting is OFF)';
+        }
+
         finalPrompt += '### SYSTEM CONTEXT:\n';
-        finalPrompt += 'Vision Analysis: ' + (sample.image ? 'ENABLED' : 'DISABLED') + '\n';
+        finalPrompt += 'Vision Analysis: ' + visionStatus + '\n';
         finalPrompt += 'Target Language: ' + sample.lang + '\n\n';
 
         finalPrompt += '### PRODUCT IDENTITY:\n';
@@ -693,13 +705,85 @@ jQuery(document).ready(function($) {
         
         // Highlight system headers for better readability
         escapedPrompt = escapedPrompt.replace(/(### [A-Z ]+:)/g, '<span class="terminal-header">$1</span>');
-        escapedPrompt = escapedPrompt.replace(/(Name:|Categories:|Attributes:|Target Language:)/g, '<span class="terminal-key">$1</span>');
+        escapedPrompt = escapedPrompt.replace(/(Name:|Categories:|Attributes:|Target Language:|Vision Analysis:)/g, '<span class="terminal-key">$1</span>');
 
         $preview.html(imageHtml + '<pre>' + escapedPrompt + '</pre>');
     }
 
     $(document).on('input', '#wasgo-prompt-input', updatePromptPreview);
     $(document).on('change', '.wasgo-spec-checkbox', updatePromptPreview);
+
+    // -------------------------------------------------------------
+    // Live Search for Preview
+    // -------------------------------------------------------------
+    let searchTimer;
+    $(document).on('input', '#wasgo-preview-search', function() {
+        clearTimeout(searchTimer);
+        let $input = $(this);
+        let term = $input.val();
+        let $results = $('#wasgo-preview-search-results');
+
+        if (term.length < 3) {
+            $results.hide();
+            return;
+        }
+
+        searchTimer = setTimeout(function() {
+            $.ajax({
+                url: wasgo_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'wasgo_content_search_products',
+                    nonce: wasgo_ajax.nonce,
+                    term: term
+                },
+                success: function(response) {
+                    if (response.success && response.data.length > 0) {
+                        let html = '';
+                        response.data.forEach(function(item) {
+                            html += '<div class="wasgo-search-item" data-id="' + item.id + '">' + item.title + ' (#' + item.id + ')</div>';
+                        });
+                        $results.html(html).show();
+                    } else {
+                        $results.html('<div style="padding:10px; color:#94a3b8;">No results.</div>').show();
+                    }
+                }
+            });
+        }, 300);
+    });
+
+    $(document).on('click', '.wasgo-search-item', function() {
+        let pid = $(this).data('id');
+        let $results = $('#wasgo-preview-search-results');
+        let $input = $('#wasgo-preview-search');
+
+        $results.hide();
+        $input.val($(this).text()).attr('disabled', 'disabled');
+
+        $.ajax({
+            url: wasgo_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'wasgo_content_get_preview_data',
+                nonce: wasgo_ajax.nonce,
+                pid: pid
+            },
+            success: function(response) {
+                if (response.success) {
+                    wasgo_ajax.sample = response.data;
+                    updatePromptPreview();
+                }
+                $input.removeAttr('disabled');
+            }
+        });
+    });
+
+    // Close dropdown on click outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.wasgo-preview-search-container').length) {
+            $('#wasgo-preview-search-results').hide();
+        }
+    });
 
     // Initial run
     updatePromptPreview();

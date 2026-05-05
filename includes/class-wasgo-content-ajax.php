@@ -15,6 +15,61 @@ class WASGO_Content_AJAX {
         add_action( 'wp_ajax_wasgo_content_progress', [ $this, 'get_progress' ] );
         add_action( 'wp_ajax_wasgo_content_review_action', [ $this, 'handle_review_action' ] );
         add_action( 'wp_ajax_wasgo_generate_single_content', [ $this, 'generate_single' ] );
+        add_action( 'wp_ajax_wasgo_content_search_products', [ $this, 'search_preview_products' ] );
+        add_action( 'wp_ajax_wasgo_content_get_preview_data', [ $this, 'get_preview_product_data' ] );
+    }
+
+    public function search_preview_products() {
+        check_ajax_referer( 'wasgo_ajax_nonce', 'nonce' );
+        $term = isset( $_POST['term'] ) ? sanitize_text_field( $_POST['term'] ) : '';
+
+        $args = [
+            'post_type'      => 'product',
+            'posts_per_page' => 10,
+            's'              => $term,
+            'post_status'    => 'publish'
+        ];
+
+        $query = new WP_Query( $args );
+        $results = [];
+
+        if ( $query->have_posts() ) {
+            while ( $query->have_posts() ) {
+                $query->the_post();
+                $results[] = [
+                    'id'    => get_the_ID(),
+                    'title' => get_the_title()
+                ];
+            }
+        }
+        wp_reset_postdata();
+
+        wp_send_json_success( $results );
+    }
+
+    public function get_preview_product_data() {
+        check_ajax_referer( 'wasgo_ajax_nonce', 'nonce' );
+        $pid = isset( $_POST['pid'] ) ? intval( $_POST['pid'] ) : 0;
+
+        if ( ! $pid ) {
+            wp_send_json_error( 'Invalid ID' );
+        }
+
+        $data = [
+            'title' => get_the_title( $pid ),
+            'cats'  => WASGO_Content_Utility::get_product_categories_string( $pid ),
+            'attrs' => WASGO_Content_Utility::get_product_attributes_string( $pid ),
+            'image' => '',
+            'lang'  => WASGO_Settings::get_content_language(),
+            'req_img' => WASGO_Settings::is_image_required()
+        ];
+
+        $img_id = get_post_thumbnail_id( $pid );
+        if ( $img_id ) {
+            $data['image'] = wp_get_attachment_thumb_url( $img_id );
+        }
+
+        wp_send_json_success( $data );
     }
 
     public function handle_review_action() {

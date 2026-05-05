@@ -583,8 +583,15 @@ class WASGO_Admin_Menu {
                 <div class="wasgo-prompt-preview-side">
                     <div class="wasgo-preview-card">
                         <div class="wasgo-preview-header">
-                            <span class="dashicons dashicons-visibility"></span>
-                            Live AI Perspective
+                            <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                                <span class="dashicons dashicons-visibility"></span>
+                                Live AI Perspective
+                            </div>
+                            <div class="wasgo-preview-search-container">
+                                <span class="dashicons dashicons-search"></span>
+                                <input type="text" id="wasgo-preview-search" placeholder="Search product to test...">
+                                <div id="wasgo-preview-search-results" class="wasgo-search-dropdown" style="display:none;"></div>
+                            </div>
                         </div>
                         <div class="wasgo-preview-terminal" id="wasgo-prompt-live-preview">
                             <!-- JS will populate this -->
