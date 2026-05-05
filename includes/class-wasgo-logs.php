@@ -41,7 +41,28 @@ class WASGO_Logs {
         if ( $post_id && ! is_wp_error( $post_id ) ) {
             update_post_meta( $post_id, 'failed_product_id', $product_id );
             update_post_meta( $post_id, 'error_message', $message );
-            update_post_meta( $post_id, '_wasgo_log_type', $type );
+            update_post_meta( $post_id, '_wasgo_log_type', $type ); // Module
+            update_post_meta( $post_id, '_wasgo_log_nature', 'error' );
+        }
+    }
+
+    /**
+     * Logs a success for a specific product
+     */
+    public static function log_success( $product_id, $message, $type = 'content' ) {
+        $product_title = get_the_title( $product_id );
+        
+        $post_id = wp_insert_post( [
+            'post_title'  => $product_title,
+            'post_status' => 'publish',
+            'post_type'   => 'wasgo_log'
+        ] );
+ 
+        if ( $post_id && ! is_wp_error( $post_id ) ) {
+            update_post_meta( $post_id, 'success_product_id', $product_id );
+            update_post_meta( $post_id, 'success_message', $message );
+            update_post_meta( $post_id, '_wasgo_log_type', $type ); // Module
+            update_post_meta( $post_id, '_wasgo_log_nature', 'success' );
         }
     }
 

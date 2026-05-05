@@ -35,6 +35,8 @@ class WASGO_Content_AJAX {
 
         if ( $action === 'approve' ) {
             WASGO_Content_Orchestrator::save_product_content( $pid, $type, $review_data[$type]['content'] );
+            $type_label = ucwords( str_replace( ['short', 'long', 'title', 'desc'], ['Short Description', 'Long Description', 'Meta Title', 'Meta Description'], $type ) );
+            WASGO_Logs::log_success( $pid, "Manually approved $type_label.", 'content' );
         }
 
         // Remove from queue

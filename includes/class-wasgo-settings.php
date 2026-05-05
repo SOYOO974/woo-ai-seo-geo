@@ -107,4 +107,8 @@ class WASGO_Settings {
     public static function should_include_categories() {
         return (bool) get_option( 'wasgo_content_include_categories', 0 );
     }
+
+    public static function is_image_required() {
+        return (bool) get_option( 'wasgo_content_image_required', 0 );
+    }
 }

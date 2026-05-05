@@ -102,6 +102,19 @@ class WASGO_Content_Orchestrator {
             }
         }
 
+        // Consolidated Success Logging
+        $success_types = [];
+        foreach ( $results_summary as $type => $status ) {
+            if ( $status === 'success' ) {
+                $success_types[] = ucwords( str_replace( ['short', 'long', 'title', 'desc'], ['Short Description', 'Long Description', 'Meta Title', 'Meta Description'], $type ) );
+            }
+        }
+
+        if ( ! empty( $success_types ) ) {
+            $msg = "Successfully generated " . implode( ", ", $success_types ) . ".";
+            WASGO_Logs::log_success( $product_id, $msg, 'content' );
+        }
+
         return [ 'status' => 'complete', 'details' => $results_summary ];
     }
 
@@ -146,6 +159,7 @@ class WASGO_Content_Orchestrator {
             $ai_fields[] = $type;
             update_post_meta( $product_id, '_wasgo_ai_fields', $ai_fields );
         }
+
 
         // Remove from review queue if it was there
         $review_data = get_post_meta( $product_id, '_wasgo_content_review', true );

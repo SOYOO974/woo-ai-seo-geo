@@ -35,12 +35,16 @@ class WASGO_Content_Validator {
         $target_lang = WASGO_Settings::get_content_language();
         $include_cats = WASGO_Settings::should_include_categories();
         $categories = $include_cats ? WASGO_Content_Utility::get_product_categories_string( $product_id ) : '';
+        $attributes = WASGO_Content_Utility::get_product_attributes_string( $product_id );
 
         $validation_prompt = "You are a critical content validator. Your job is to verify that the AI-generated product content is 100% accurate and does NOT contain hallucinations.\n\n";
         $validation_prompt .= "### PRODUCT CONTEXT:\n";
         $validation_prompt .= "Title: $product_title\n";
         if ( ! empty( $categories ) ) {
             $validation_prompt .= "Categories: $categories\n";
+        }
+        if ( ! empty( $attributes ) ) {
+            $validation_prompt .= "Attributes:\n$attributes\n";
         }
         if ( ! empty( $context['specs'] ) ) {
             $validation_prompt .= "Verified Specs:\n";

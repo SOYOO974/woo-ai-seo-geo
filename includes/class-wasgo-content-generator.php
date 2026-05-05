@@ -35,12 +35,16 @@ class WASGO_Content_Generator {
         $target_lang = WASGO_Settings::get_content_language();
         $include_cats = WASGO_Settings::should_include_categories();
         $categories = $include_cats ? WASGO_Content_Utility::get_product_categories_string( $product_id ) : '';
+        $attributes = WASGO_Content_Utility::get_product_attributes_string( $product_id );
 
         $sections_to_generate = [];
         $full_prompt = "### PRODUCT IDENTITY:\n";
         $full_prompt .= "Name: $product_title\n";
         if ( ! empty( $categories ) ) {
             $full_prompt .= "Categories: $categories\n";
+        }
+        if ( ! empty( $attributes ) ) {
+            $full_prompt .= "Attributes:\n$attributes\n";
         }
         $full_prompt .= "Target Language: $target_lang\n\n";
 

@@ -76,4 +76,41 @@ class WASGO_Content_Utility {
 
         return implode( ', ', $categories );
     }
+
+    /**
+     * Get all product attributes as a formatted string
+     */
+    public static function get_product_attributes_string( $product_id ) {
+        $product = wc_get_product( $product_id );
+        if ( ! $product ) {
+            return '';
+        }
+
+        $attributes = $product->get_attributes();
+        if ( empty( $attributes ) ) {
+            return '';
+        }
+
+        $formatted = [];
+        foreach ( $attributes as $attr ) {
+            $name = $attr->is_taxonomy() ? wc_attribute_label( $attr->get_name() ) : $attr->get_name();
+            
+            if ( $attr->is_taxonomy() ) {
+                $terms = $attr->get_terms();
+                $values = [];
+                foreach ( $terms as $term ) {
+                    $values[] = $term->name;
+                }
+                $val_str = implode( ', ', $values );
+            } else {
+                $val_str = implode( ', ', $attr->get_options() );
+            }
+
+            if ( ! empty( $val_str ) ) {
+                $formatted[] = "$name: $val_str";
+            }
+        }
+
+        return implode( "\n", $formatted );
+    }
 }

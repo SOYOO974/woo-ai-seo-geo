@@ -628,4 +628,80 @@ jQuery(document).ready(function($) {
         });
     });
 
+    // -------------------------------------------------------------
+    // Live Prompt Preview Engine
+    // -------------------------------------------------------------
+    function updatePromptPreview() {
+        let $input = $('#wasgo-prompt-input');
+        if (!$input.length) return;
+
+        let $preview = $('#wasgo-prompt-live-preview');
+        let userPrompt = $input.val();
+        let type = $input.data('type');
+        let sample = wasgo_ajax.sample;
+
+        let finalPrompt = '';
+        
+        // Visual Image Context
+        let imageHtml = '';
+        if (sample.image) {
+            imageHtml = '<div class="wasgo-terminal-image"><img src="' + sample.image + '" /><span>📎 AI Vision Context Attached</span></div>';
+        } else if (sample.req_img) {
+            imageHtml = '<div class="wasgo-terminal-image warning"><span class="dashicons dashicons-warning"></span><span>⚠️ No Image Found - Vision Analysis will be skipped</span></div>';
+        }
+
+        finalPrompt += '### SYSTEM CONTEXT:\n';
+        finalPrompt += 'Vision Analysis: ' + (sample.image ? 'ENABLED' : 'DISABLED') + '\n';
+        finalPrompt += 'Target Language: ' + sample.lang + '\n\n';
+
+        finalPrompt += '### PRODUCT IDENTITY:\n';
+        finalPrompt += 'Name: ' + sample.title + '\n';
+        if (sample.cats) {
+            finalPrompt += 'Categories: ' + sample.cats + '\n';
+        }
+        if (sample.attrs) {
+            finalPrompt += 'Attributes:\n' + sample.attrs + '\n';
+        }
+        finalPrompt += '\n';
+
+        // Add selected specs simulation
+        let selectedSpecs = [];
+        $('.wasgo-spec-checkbox:checked').each(function() {
+            selectedSpecs.push($(this).val().replace(/_/g, ' '));
+        });
+
+        if (selectedSpecs.length > 0) {
+            finalPrompt += '### USEFUL SPECS:\n';
+            selectedSpecs.forEach(function(spec) {
+                finalPrompt += spec + ': [SAMPLE VALUE]\n';
+            });
+            finalPrompt += '\n';
+        }
+
+        let typeLabels = {
+            'short': 'SHORT DESCRIPTION',
+            'long': 'LONG DESCRIPTION',
+            'title': 'META TITLE',
+            'desc': 'META DESCRIPTION'
+        };
+
+        finalPrompt += '### INSTRUCTIONS FOR ' + (typeLabels[type] || type.toUpperCase()) + ':\n';
+        finalPrompt += userPrompt;
+
+        // Escape HTML for safety in preview
+        let escapedPrompt = $('<div>').text(finalPrompt).html();
+        
+        // Highlight system headers for better readability
+        escapedPrompt = escapedPrompt.replace(/(### [A-Z ]+:)/g, '<span class="terminal-header">$1</span>');
+        escapedPrompt = escapedPrompt.replace(/(Name:|Categories:|Attributes:|Target Language:)/g, '<span class="terminal-key">$1</span>');
+
+        $preview.html(imageHtml + '<pre>' + escapedPrompt + '</pre>');
+    }
+
+    $(document).on('input', '#wasgo-prompt-input', updatePromptPreview);
+    $(document).on('change', '.wasgo-spec-checkbox', updatePromptPreview);
+
+    // Initial run
+    updatePromptPreview();
+
 });

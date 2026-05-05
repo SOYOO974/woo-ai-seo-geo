@@ -63,9 +63,32 @@ class WASGO_Admin_Menu {
             wp_enqueue_style( 'wasgo-admin-css', WASGO_PLUGIN_URL . 'assets/css/admin.css', [], WASGO_VERSION );
             wp_enqueue_script( 'wasgo-admin-js', WASGO_PLUGIN_URL . 'assets/js/admin.js', [ 'jquery' ], WASGO_VERSION, true );
             
+            $sample_product_id = 0;
+            $sample_data = [
+                'title' => 'Sample Product Name',
+                'cats'  => 'Electronics > Laptops',
+                'attrs' => "Color: Silver\nRAM: 16GB",
+                'lang'  => WASGO_Settings::get_content_language(),
+                'image' => '',
+                'req_img' => WASGO_Settings::is_image_required()
+            ];
+
+            $latest = get_posts(['post_type' => 'product', 'posts_per_page' => 1, 'post_status' => 'publish', 'fields' => 'ids']);
+            if ( ! empty( $latest ) ) {
+                $pid = $latest[0];
+                $sample_data['title'] = get_the_title( $pid );
+                $sample_data['cats']  = WASGO_Content_Utility::get_product_categories_string( $pid );
+                $sample_data['attrs'] = WASGO_Content_Utility::get_product_attributes_string( $pid );
+                $img_id = get_post_thumbnail_id( $pid );
+                if ( $img_id ) {
+                    $sample_data['image'] = wp_get_attachment_thumb_url( $img_id );
+                }
+            }
+
             wp_localize_script( 'wasgo-admin-js', 'wasgo_ajax', [
                 'ajax_url' => admin_url( 'admin-ajax.php' ),
-                'nonce'    => wp_create_nonce( 'wasgo_ajax_nonce' )
+                'nonce'    => wp_create_nonce( 'wasgo_ajax_nonce' ),
+                'sample'   => $sample_data
             ] );
         }
     }
@@ -451,6 +474,7 @@ class WASGO_Admin_Menu {
                 <a href="?page=wasgo-content-generation&tab=settings" class="nav-tab <?php echo $active_tab == 'settings' ? 'nav-tab-active' : ''; ?>">Local Settings</a>
                 <a href="?page=wasgo-content-generation&tab=bulk" class="nav-tab <?php echo $active_tab == 'bulk' ? 'nav-tab-active' : ''; ?>">Bulk Actions</a>
                 <a href="?page=wasgo-content-generation&tab=review" class="nav-tab <?php echo $active_tab == 'review' ? 'nav-tab-active' : ''; ?>">Review Required</a>
+                <a href="?page=wasgo-content-generation&tab=success_logs" class="nav-tab <?php echo $active_tab == 'success_logs' ? 'nav-tab-active' : ''; ?>">Success Logs</a>
                 <a href="?page=wasgo-content-generation&tab=logs" class="nav-tab <?php echo $active_tab == 'logs' ? 'nav-tab-active' : ''; ?>">Failure Logs</a>
             </h2>
 
@@ -464,6 +488,8 @@ class WASGO_Admin_Menu {
                     $this->render_content_tab_bulk();
                 } elseif ( $active_tab == 'review' ) {
                     $this->render_content_tab_review();
+                } elseif ( $active_tab == 'success_logs' ) {
+                    $this->render_tab_success_logs();
                 } elseif ( $active_tab == 'logs' ) {
                     $this->render_content_tab_logs();
                 }
@@ -511,39 +537,63 @@ class WASGO_Admin_Menu {
             settings_fields( $current['group'] );
             do_settings_sections( $current['group'] );
             ?>
-            <div class="wasgo-admin-card" style="padding: 40px;">
-                <h3 style="margin-top: 0; margin-bottom: 20px; color: #1e293b;">
-                    <?php echo $tabs[$sub_tab]; ?> AI Prompt
-                </h3>
-                
-                <p class="description" style="margin-bottom:15px;">
-                    Define the custom instructions for this content type. The system automatically includes the <strong>Product Title</strong>, <strong>Categories</strong> (if enabled), and selected <strong>Useful Specs</strong> in the request.
-                </p>
+            <div class="wasgo-prompt-split-container">
+                <!-- Editor Side -->
+                <div class="wasgo-prompt-editor-side">
+                    <div class="wasgo-admin-card" style="padding: 30px;">
+                        <h3 style="margin-top: 0; margin-bottom: 20px; color: #1e293b;">
+                            <?php echo $tabs[$sub_tab]; ?> AI Prompt
+                        </h3>
+                        
+                        <p class="description" style="margin-bottom:15px;">
+                            Define the custom instructions for this content type.
+                        </p>
 
-                <textarea name="<?php echo $current['prompt']; ?>" rows="8" 
-                          placeholder="e.g. Write a catchy and professional <?php echo strtolower($tabs[$sub_tab]); ?>..."><?php echo esc_textarea( get_option( $current['prompt'] ) ); ?></textarea>
+                        <textarea id="wasgo-prompt-input" name="<?php echo $current['prompt']; ?>" rows="10" 
+                                  placeholder="e.g. Write a catchy and professional <?php echo strtolower($tabs[$sub_tab]); ?>..."
+                                  data-type="<?php echo $sub_tab; ?>"><?php echo esc_textarea( get_option( $current['prompt'] ) ); ?></textarea>
 
-                <div class="wasgo-specs-title">
-                    <span class="dashicons dashicons-list-view"></span>
-                    Useful Specs to Include (Dynamically Fetched)
+                        <div class="wasgo-specs-title">
+                            <span class="dashicons dashicons-list-view"></span>
+                            Useful Specs to Include
+                        </div>
+                        <p class="description" style="margin-bottom:15px;">
+                            Select which product details should be dynamically attached.
+                        </p>
+
+                        <div class="wasgo-specs-container">
+                            <?php foreach ( $specs as $spec ) : ?>
+                                <label class="wasgo-spec-item">
+                                    <input type="checkbox" name="<?php echo $current['specs']; ?>[]" 
+                                           class="wasgo-spec-checkbox"
+                                           value="<?php echo esc_attr( $spec ); ?>" 
+                                           <?php checked( in_array( $spec, $saved_specs ) ); ?>>
+                                    <?php echo esc_html( str_replace( '_', ' ', $spec ) ); ?>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <div style="margin-top: 30px;">
+                            <?php submit_button( 'Save ' . $tabs[$sub_tab] . ' Settings' ); ?>
+                        </div>
+                    </div>
                 </div>
-                <p class="description" style="margin-bottom:15px;">
-                    Select which product details should be dynamically attached to the prompt. Only specs that exist for the product will be sent.
-                </p>
 
-                <div class="wasgo-specs-container">
-                    <?php foreach ( $specs as $spec ) : ?>
-                        <label class="wasgo-spec-item">
-                            <input type="checkbox" name="<?php echo $current['specs']; ?>[]" 
-                                   value="<?php echo esc_attr( $spec ); ?>" 
-                                   <?php checked( in_array( $spec, $saved_specs ) ); ?>>
-                            <?php echo esc_html( str_replace( '_', ' ', $spec ) ); ?>
-                        </label>
-                    <?php endforeach; ?>
-                </div>
-
-                <div style="margin-top: 30px;">
-                    <?php submit_button( 'Save ' . $tabs[$sub_tab] . ' Settings' ); ?>
+                <!-- Preview Side (Sticky) -->
+                <div class="wasgo-prompt-preview-side">
+                    <div class="wasgo-preview-card">
+                        <div class="wasgo-preview-header">
+                            <span class="dashicons dashicons-visibility"></span>
+                            Live AI Perspective
+                        </div>
+                        <div class="wasgo-preview-terminal" id="wasgo-prompt-live-preview">
+                            <!-- JS will populate this -->
+                            <div class="wasgo-terminal-loading">Waiting for input...</div>
+                        </div>
+                        <div class="wasgo-preview-footer">
+                            This is exactly what is sent to <strong>GPT-4o</strong> for a sample product.
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>
@@ -786,6 +836,124 @@ class WASGO_Admin_Menu {
         </div>
         <?php
     }
+    private function render_tab_success_logs() {
+        $paged = isset( $_GET['paged'] ) ? max( 1, intval( $_GET['paged'] ) ) : 1;
+        $args = [
+            'post_type'      => 'wasgo_log',
+            'posts_per_page' => 20,
+            'paged'          => $paged,
+            'orderby'        => 'date',
+            'order'          => 'DESC',
+            'meta_query'     => [
+                'relation' => 'AND',
+                [
+                    'key'   => '_wasgo_log_type',
+                    'value' => 'content'
+                ],
+                [
+                    'key'   => '_wasgo_log_nature',
+                    'value' => 'success'
+                ]
+            ]
+        ];
+        $query = new WP_Query( $args );
+        ?>
+        <div class="wasgo-admin-card" style="padding:0; overflow:hidden;">
+            <div style="padding: 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fff;">
+                <h3 style="margin:0; font-size: 16px; color: #1e293b;">Successfully Generated Products</h3>
+                <form method="post" style="margin:0;">
+                    <?php wp_nonce_field('wasgo_clear_logs', 'wasgo_logs_nonce'); ?>
+                    <button type="submit" name="wasgo_clear_success_logs" class="button button-secondary" style="color: #64748b; border-color: #e2e8f0;">Clear Success History</button>
+                </form>
+            </div>
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th style="width: 18%; padding-left: 20px;">Date / Time</th>
+                        <th style="width: 35%;">Product</th>
+                        <th style="width: 27%;">Update Detail</th>
+                        <th style="width: 20%; text-align: right; padding-right: 20px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if ( $query->have_posts() ) : while ( $query->have_posts() ) : $query->the_post(); 
+                        $pid = get_post_meta( get_the_ID(), 'success_product_id', true );
+                        $msg = get_post_meta( get_the_ID(), 'success_message', true );
+                        $product_url = get_permalink( $pid );
+                        $edit_url = get_edit_post_link( $pid );
+                    ?>
+                    <tr>
+                        <td style="padding-left: 20px; color: #64748b; font-size: 13px;"><?php echo get_the_date( 'M j, H:i' ); ?></td>
+                        <td>
+                            <strong style="color: #1e293b;">#<?php echo esc_html( $pid ); ?> - <?php the_title(); ?></strong>
+                        </td>
+                        <td>
+                            <span style="display:inline-block; padding: 2px 8px; border-radius: 4px; background: #dcfce7; color: #166534; font-size: 11px; font-weight: 600;">
+                                <span class="dashicons dashicons-yes" style="font-size: 14px; width: 14px; height: 14px; line-height: 1.4;"></span>
+                                <?php echo esc_html( $msg ); ?>
+                            </span>
+                        </td>
+                        <td style="text-align: right; padding-right: 20px;">
+                            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                <a href="<?php echo esc_url( $product_url ); ?>" target="_blank" class="button button-small" title="View on Site">
+                                    <span class="dashicons dashicons-visibility" style="margin-top: 4px;"></span> View
+                                </a>
+                                <a href="<?php echo esc_url( $edit_url ); ?>" target="_blank" class="button button-small" title="Edit in Admin">
+                                    <span class="dashicons dashicons-edit" style="margin-top: 4px;"></span> Edit
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endwhile; wp_reset_postdata(); else : ?>
+                    <tr>
+                        <td colspan="4" style="padding: 60px; text-align: center; color: #64748b;">
+                            <span class="dashicons dashicons-clock" style="font-size: 40px; width: 40px; height: 40px; display: block; margin: 0 auto 15px; color: #cbd5e1;"></span>
+                            No successful updates recorded yet. Start a generation to see results here.
+                        </td>
+                    </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+            <?php if ( $query->max_num_pages > 1 ) : ?>
+                <div class="tablenav bottom" style="padding: 15px;">
+                    <div class="tablenav-pages">
+                        <?php
+                        echo paginate_links( [
+                            'base'      => add_query_arg( 'paged', '%#%' ),
+                            'format'    => '',
+                            'prev_text' => __( '&laquo;' ),
+                            'next_text' => __( '&raquo;' ),
+                            'total'     => $query->max_num_pages,
+                            'current'   => $paged,
+                        ] );
+                        ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <?php
+            // Handle clearing success logs
+            if ( isset($_POST['wasgo_clear_success_logs']) && check_admin_referer('wasgo_clear_logs', 'wasgo_logs_nonce') ) {
+                $logs_to_clear = get_posts([
+                    'post_type'      => 'wasgo_log',
+                    'numberposts'    => -1,
+                    'post_status'    => 'any',
+                    'meta_query'     => [
+                        'relation' => 'AND',
+                        ['key' => '_wasgo_log_type', 'value' => 'content'],
+                        ['key' => '_wasgo_log_nature', 'value' => 'success']
+                    ]
+                ]);
+                foreach ( $logs_to_clear as $log ) {
+                    wp_delete_post( $log->ID, true );
+                }
+                echo "<script>location.href='admin.php?page=wasgo-content-generation&tab=success_logs';</script>";
+            }
+            ?>
+        </div>
+        <?php
+    }
+
 
     private function render_content_tab_logs() {
         $args = [
@@ -794,9 +962,14 @@ class WASGO_Admin_Menu {
             'orderby'        => 'date',
             'order'          => 'DESC',
             'meta_query'     => [
+                'relation' => 'AND',
                 [
                     'key'   => '_wasgo_log_type',
                     'value' => 'content'
+                ],
+                [
+                    'key'   => '_wasgo_log_nature',
+                    'value' => 'error'
                 ]
             ]
         ];
