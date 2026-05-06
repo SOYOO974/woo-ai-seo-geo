@@ -23,13 +23,27 @@ class WASGO_Content_Generator {
         }
 
         $product_title = get_the_title( $product_id );
-        $image_url = '';
+        $image_data_url = '';
         if ( get_option( 'wasgo_content_image_required', 0 ) ) {
             $image_id = get_post_thumbnail_id( $product_id );
             if ( ! $image_id ) {
                 return new WP_Error( 'missing_image', 'Product image is required but missing.' );
             }
-            $image_url = wp_get_attachment_url( $image_id );
+            
+            // Prefer local file path for reliable reading and encoding
+            $image_path = get_attached_file( $image_id );
+            if ( $image_path && file_exists( $image_path ) ) {
+                $raw_data = @file_get_contents( $image_path );
+                $mime = get_post_mime_type( $image_id ) ?: 'image/jpeg';
+                if ( $raw_data ) {
+                    $image_data_url = 'data:' . $mime . ';base64,' . base64_encode( $raw_data );
+                }
+            }
+
+            // Fallback to public URL only if local reading failed (e.g. cloud storage)
+            if ( empty( $image_data_url ) ) {
+                $image_data_url = wp_get_attachment_url( $image_id );
+            }
         }
 
         $target_lang = WASGO_Settings::get_content_language();
@@ -128,10 +142,10 @@ class WASGO_Content_Generator {
         ];
 
         // Add image context if available
-        if ( ! empty( $image_url ) ) {
+        if ( ! empty( $image_data_url ) ) {
             $messages[1]['content'] = [
                 [ 'type' => 'text', 'text' => $full_prompt ],
-                [ 'type' => 'image_url', 'image_url' => [ 'url' => $image_url ] ]
+                [ 'type' => 'image_url', 'image_url' => [ 'url' => $image_data_url ] ]
             ];
         }
 

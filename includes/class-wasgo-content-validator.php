@@ -24,11 +24,23 @@ class WASGO_Content_Validator {
         }
 
         $product_title = get_the_title( $product_id );
-        $image_url = '';
+        $image_data_url = '';
         if ( get_option( 'wasgo_content_image_required', 0 ) ) {
             $image_id = get_post_thumbnail_id( $product_id );
             if ( $image_id ) {
-                $image_url = wp_get_attachment_url( $image_id );
+                $image_path = get_attached_file( $image_id );
+                if ( $image_path && file_exists( $image_path ) ) {
+                    $raw_data = @file_get_contents( $image_path );
+                    $mime = get_post_mime_type( $image_id ) ?: 'image/jpeg';
+                    if ( $raw_data ) {
+                        $image_data_url = 'data:' . $mime . ';base64,' . base64_encode( $raw_data );
+                    }
+                }
+
+                // Fallback to URL if local reading fails
+                if ( empty( $image_data_url ) ) {
+                    $image_data_url = wp_get_attachment_url( $image_id );
+                }
             }
         }
         
@@ -92,10 +104,10 @@ class WASGO_Content_Validator {
         ];
 
         // Add vision context if available
-        if ( ! empty( $image_url ) ) {
+        if ( ! empty( $image_data_url ) ) {
             $messages[1]['content'] = [
                 [ 'type' => 'text', 'text' => $validation_prompt ],
-                [ 'type' => 'image_url', 'image_url' => [ 'url' => $image_url ] ]
+                [ 'type' => 'image_url', 'image_url' => [ 'url' => $image_data_url ] ]
             ];
         }
 
