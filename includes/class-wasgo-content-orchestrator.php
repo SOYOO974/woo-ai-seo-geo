@@ -104,15 +104,18 @@ class WASGO_Content_Orchestrator {
 
         // Consolidated Success Logging
         $success_types = [];
+        $log_data = [];
         foreach ( $results_summary as $type => $status ) {
             if ( $status === 'success' ) {
-                $success_types[] = ucwords( str_replace( ['short', 'long', 'title', 'desc'], ['Short Description', 'Long Description', 'Meta Title', 'Meta Description'], $type ) );
+                $label = ucwords( str_replace( ['short', 'long', 'title', 'desc'], ['Short Description', 'Long Description', 'Meta Title', 'Meta Description'], $type ) );
+                $success_types[] = $label;
+                $log_data[$label] = isset( $generation_result[$type] ) ? $generation_result[$type] : '';
             }
         }
 
         if ( ! empty( $success_types ) ) {
             $msg = "Successfully generated " . implode( ", ", $success_types ) . ".";
-            WASGO_Logs::log_success( $product_id, $msg, 'content' );
+            WASGO_Logs::log_success( $product_id, $msg, 'content', $log_data );
         }
 
         return [ 'status' => 'complete', 'details' => $results_summary ];
@@ -175,7 +178,7 @@ class WASGO_Content_Orchestrator {
     }
 
     /**
-     * Update SEO fields for Yoast or RankMath
+     * Update SEO fields for Yoast, RankMath, or The SEO Framework
      */
     private static function update_seo_field( $product_id, $field_type, $value ) {
         // Yoast SEO
@@ -187,6 +190,12 @@ class WASGO_Content_Orchestrator {
         // Rank Math
         if ( class_exists( 'RankMath' ) ) {
             $meta_key = ( $field_type === 'title' ) ? 'rank_math_title' : 'rank_math_description';
+            update_post_meta( $product_id, $meta_key, $value );
+        }
+
+        // The SEO Framework (TSF)
+        if ( defined( 'THE_SEO_FRAMEWORK_VERSION' ) ) {
+            $meta_key = ( $field_type === 'title' ) ? '_genesis_title' : '_genesis_description';
             update_post_meta( $product_id, $meta_key, $value );
         }
 

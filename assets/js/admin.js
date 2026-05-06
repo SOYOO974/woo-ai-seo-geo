@@ -785,6 +785,26 @@ jQuery(document).ready(function($) {
         }
     });
 
+    // -------------------------------------------------------------
+    // Success Logs Content Toggle
+    // -------------------------------------------------------------
+    $(document).on('click', '.wasgo-toggle-log-content', function(e) {
+        e.preventDefault();
+        let targetId = $(this).data('target');
+        let $target = $('#' + targetId);
+        let $icon = $(this).find('.dashicons');
+
+        if ($target.is(':visible')) {
+            $target.hide();
+            $icon.removeClass('dashicons-arrow-up-alt2').addClass('dashicons-media-document');
+            $(this).contents().last()[0].textContent = ' Preview Content';
+        } else {
+            $target.show();
+            $icon.removeClass('dashicons-media-document').addClass('dashicons-arrow-up-alt2');
+            $(this).contents().last()[0].textContent = ' Hide Content';
+        }
+    });
+
     // Initial run
     updatePromptPreview();
 

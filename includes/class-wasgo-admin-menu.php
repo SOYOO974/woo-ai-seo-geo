@@ -884,8 +884,10 @@ class WASGO_Admin_Menu {
                 </thead>
                 <tbody>
                     <?php if ( $query->have_posts() ) : while ( $query->have_posts() ) : $query->the_post(); 
-                        $pid = get_post_meta( get_the_ID(), 'success_product_id', true );
-                        $msg = get_post_meta( get_the_ID(), 'success_message', true );
+                        $log_id = get_the_ID();
+                        $pid = get_post_meta( $log_id, 'success_product_id', true );
+                        $msg = get_post_meta( $log_id, 'success_message', true );
+                        $log_data = get_post_meta( $log_id, '_wasgo_log_data', true );
                         $product_url = get_permalink( $pid );
                         $edit_url = get_edit_post_link( $pid );
                     ?>
@@ -895,13 +897,20 @@ class WASGO_Admin_Menu {
                             <strong style="color: #1e293b;">#<?php echo esc_html( $pid ); ?> - <?php the_title(); ?></strong>
                         </td>
                         <td>
-                            <span style="display:inline-block; padding: 2px 8px; border-radius: 4px; background: #dcfce7; color: #166534; font-size: 11px; font-weight: 600;">
+                            <span style="display:inline-block; padding: 2px 8px; border-radius: 4px; background: #dcfce7; color: #166534; font-size: 11px; font-weight: 600; width: fit-content;">
                                 <span class="dashicons dashicons-yes" style="font-size: 14px; width: 14px; height: 14px; line-height: 1.4;"></span>
                                 <?php echo esc_html( $msg ); ?>
                             </span>
                         </td>
                         <td style="text-align: right; padding-right: 20px;">
                             <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                <?php if ( ! empty( $log_data ) ) : ?>
+                                    <button type="button" class="wasgo-toggle-log-content button button-small" 
+                                            data-target="log-content-<?php echo $log_id; ?>" 
+                                            style="background: #6366f1; border-color: #4f46e5; color: #fff;">
+                                        <span class="dashicons dashicons-media-document" style="margin-top: 4px;"></span> Preview Content
+                                    </button>
+                                <?php endif; ?>
                                 <a href="<?php echo esc_url( $product_url ); ?>" target="_blank" class="button button-small" title="View on Site">
                                     <span class="dashicons dashicons-visibility" style="margin-top: 4px;"></span> View
                                 </a>
@@ -911,6 +920,25 @@ class WASGO_Admin_Menu {
                             </div>
                         </td>
                     </tr>
+                    <?php if ( ! empty( $log_data ) ) : ?>
+                    <tr id="log-content-<?php echo $log_id; ?>" style="display:none; background: #f8fafc; border-left: 4px solid #6366f1;">
+                        <td colspan="4" style="padding: 20px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px;">
+                                <?php foreach ( $log_data as $label => $content ) : ?>
+                                    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                        <div style="font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                                            <span class="dashicons dashicons-editor-alignleft" style="font-size: 14px; width:14px; height:14px;"></span>
+                                            <?php echo esc_html( $label ); ?>
+                                        </div>
+                                        <div style="font-size: 13px; color: #334155; line-height: 1.6; max-height: 200px; overflow-y: auto; padding-right: 5px;" class="wasgo-custom-scrollbar">
+                                            <?php echo nl2br( esc_html( $content ) ); ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                     <?php endwhile; wp_reset_postdata(); else : ?>
                     <tr>
                         <td colspan="4" style="padding: 60px; text-align: center; color: #64748b;">

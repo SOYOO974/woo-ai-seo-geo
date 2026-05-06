@@ -49,7 +49,7 @@ class WASGO_Logs {
     /**
      * Logs a success for a specific product
      */
-    public static function log_success( $product_id, $message, $type = 'content' ) {
+    public static function log_success( $product_id, $message, $type = 'content', $data = [] ) {
         $product_title = get_the_title( $product_id );
         
         $post_id = wp_insert_post( [
@@ -63,6 +63,10 @@ class WASGO_Logs {
             update_post_meta( $post_id, 'success_message', $message );
             update_post_meta( $post_id, '_wasgo_log_type', $type ); // Module
             update_post_meta( $post_id, '_wasgo_log_nature', 'success' );
+            
+            if ( ! empty( $data ) ) {
+                update_post_meta( $post_id, '_wasgo_log_data', $data );
+            }
         }
     }
 
