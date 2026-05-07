@@ -18,13 +18,16 @@ class WASGO_Content_Batch_Processor {
     /**
      * Start bulk content generation
      */
+    /**
+     * Start the bulk process
+     */
     public static function start_bulk( $types, $mode, $resume = false ) {
-        if ( $resume ) {
-            $total = get_option( 'wasgo_content_total', 0 );
-            $processed = get_option( 'wasgo_content_processed', 0 );
-            if ( $total == 0 || $processed >= $total ) {
-                $resume = false;
-            }
+        $old_types = get_option( 'wasgo_content_bulk_types', [] );
+        $old_mode  = get_option( 'wasgo_content_bulk_mode', '' );
+
+        // If types or mode changed, we MUST NOT resume. We must start fresh.
+        if ( serialize( $types ) !== serialize( $old_types ) || $mode !== $old_mode ) {
+            $resume = false;
         }
 
         update_option( 'wasgo_content_bulk_types', $types );
@@ -32,16 +35,25 @@ class WASGO_Content_Batch_Processor {
 
         if ( ! $resume ) {
             update_option( 'wasgo_content_processed', 0 );
-            $total = self::get_total_remaining( $types, $mode );
+            $queue = self::get_eligible_product_ids( $types, $mode );
+            update_option( 'wasgo_content_queue', $queue );
+            $total = count( $queue );
             update_option( 'wasgo_content_total', $total );
         } else {
             $total = get_option( 'wasgo_content_total', 0 );
+            $queue = get_option( 'wasgo_content_queue', [] );
+            
+            // If the queue is empty but total > 0, it means we actually finished
+            if ( empty( $queue ) && $total > 0 ) {
+                update_option( 'wasgo_content_bulk_status', 'finished' );
+                return $total;
+            }
         }
 
-        if ( $total > 0 ) {
+        if ( $total > 0 && ! empty( $queue ) ) {
             update_option( 'wasgo_content_bulk_status', 'running' );
             as_unschedule_all_actions( 'wasgo_process_content_batch' );
-            as_enqueue_async_action( 'wasgo_process_content_batch', [ $types, $mode, 1 ], 'wasgo-content' );
+            as_enqueue_async_action( 'wasgo_process_content_batch', [ $types, $mode ], 'wasgo-content' );
         } else {
             update_option( 'wasgo_content_bulk_status', 'finished' );
         }
@@ -49,15 +61,10 @@ class WASGO_Content_Batch_Processor {
         return $total;
     }
 
-    public static function stop_bulk() {
-        update_option( 'wasgo_content_bulk_status', 'stopped' );
-        as_unschedule_all_actions( 'wasgo_process_content_batch' );
-    }
-
     /**
-     * Get count of products needing processing
+     * Get list of product IDs needing processing
      */
-    public static function get_total_remaining( $types, $mode ) {
+    public static function get_eligible_product_ids( $types, $mode ) {
         $args = [
             'post_type'      => 'product',
             'posts_per_page' => -1,
@@ -66,13 +73,6 @@ class WASGO_Content_Batch_Processor {
         ];
 
         $meta_query = [ 'relation' => 'AND' ];
-
-        if ( $mode === 'smart' ) {
-            // In smart mode, we skip if ALL requested types are already filled
-            // This is complex for a meta query, so we'll fetch all and filter in PHP 
-            // for absolute accuracy, or just return total products to be safe.
-            // For now, let's just filter by out-of-stock and image requirement.
-        }
 
         if ( get_option( 'wasgo_content_out_of_stock', 0 ) ) {
             $meta_query[] = [
@@ -95,14 +95,10 @@ class WASGO_Content_Batch_Processor {
 
         $products = get_posts( $args );
         
-        // If Smart Mode, we filter products that already have all types filled
         if ( $mode === 'smart' ) {
             $filtered = [];
             foreach ( $products as $pid ) {
-                // Skip if product is already in the review queue
-                if ( get_post_meta( $pid, '_wasgo_needs_review', true ) ) {
-                    continue;
-                }
+                if ( get_post_meta( $pid, '_wasgo_needs_review', true ) ) continue;
 
                 $needs_work = false;
                 foreach ( $types as $type ) {
@@ -110,10 +106,13 @@ class WASGO_Content_Batch_Processor {
                     if ( $type === 'short' ) $val = get_post_field( 'post_excerpt', $pid );
                     elseif ( $type === 'long' ) $val = get_post_field( 'post_content', $pid );
                     elseif ( $type === 'title' ) {
-                        // Check SEO fields
-                        $val = get_post_meta( $pid, '_yoast_wpseo_title', true ) ?: get_post_meta( $pid, 'rank_math_title', true );
+                        $val = get_post_meta( $pid, '_yoast_wpseo_title', true ) ?: 
+                               get_post_meta( $pid, 'rank_math_title', true ) ?: 
+                               get_post_meta( $pid, '_genesis_title', true );
                     } elseif ( $type === 'desc' ) {
-                        $val = get_post_meta( $pid, '_yoast_wpseo_metadesc', true ) ?: get_post_meta( $pid, 'rank_math_description', true );
+                        $val = get_post_meta( $pid, '_yoast_wpseo_metadesc', true ) ?: 
+                               get_post_meta( $pid, 'rank_math_description', true ) ?: 
+                               get_post_meta( $pid, '_genesis_description', true );
                     }
 
                     if ( empty( $val ) ) {
@@ -123,96 +122,54 @@ class WASGO_Content_Batch_Processor {
                 }
                 if ( $needs_work ) $filtered[] = $pid;
             }
-            return count( $filtered );
+            return $filtered;
         }
 
-        return count( $products );
+        return $products;
     }
 
     /**
-     * The hook called by Action Scheduler
+     * Legacy helper for UI
      */
-    public function process_batch( $types, $mode, $batch_number ) {
-        @set_time_limit( 300 );
-        
-        $status = get_option( 'wasgo_content_bulk_status', 'stopped' );
-        if ( $status === 'stopped' ) return;
+    public static function get_total_remaining( $types, $mode ) {
+        $ids = self::get_eligible_product_ids( $types, $mode );
+        return count( $ids );
+    }
 
-        // Logic: Fetch the NEXT product that needs work
-        $args = [
-            'post_type'      => 'product',
-            'posts_per_page' => 1,
-            'orderby'        => 'ID',
-            'order'          => 'ASC',
-            'post_status'    => 'publish',
-            'fields'         => 'ids',
-        ];
+    public static function stop_bulk() {
+        update_option( 'wasgo_content_bulk_status', 'stopped' );
+        as_unschedule_all_actions( 'wasgo_process_content_batch' );
+    }
 
-        // Same filtering as get_total_remaining
-        if ( get_option( 'wasgo_content_out_of_stock', 0 ) ) {
-            $args['meta_query'][] = [ 'key' => '_stock_status', 'value' => 'outofstock', 'compare' => '!=' ];
-        }
-        if ( get_option( 'wasgo_content_image_required', 0 ) ) {
-            $args['meta_query'][] = [ 'key' => '_thumbnail_id', 'compare' => 'EXISTS' ];
+    /**
+     * Process a batch of products from the queue
+     */
+    public function process_batch( $types, $mode ) {
+        if ( get_option( 'wasgo_content_bulk_status' ) !== 'running' ) {
+            return;
         }
 
-        if ( $mode === 'full' ) {
-            $args['paged'] = $batch_number;
-        } else {
-            // Smart mode: we need to find the first product that is missing AT LEAST one type
-            // This is harder to do in WP_Query. We'll fetch a small batch and filter.
-            $args['posts_per_page'] = 50; 
-            $args['paged'] = $batch_number;
-        }
+        $queue = get_option( 'wasgo_content_queue', [] );
 
-        $products = get_posts( $args );
-
-        if ( empty( $products ) ) {
+        if ( empty( $queue ) ) {
             update_option( 'wasgo_content_bulk_status', 'finished' );
             return;
         }
 
-        $target_product = 0;
-        if ( $mode === 'full' ) {
-            $target_product = $products[0];
-        } else {
-            foreach ( $products as $pid ) {
-                // Skip if product is already in the review queue
-                if ( get_post_meta( $pid, '_wasgo_needs_review', true ) ) {
-                    continue;
-                }
-
-                foreach ( $types as $type ) {
-                    $val = '';
-                    if ( $type === 'short' ) $val = get_post_field( 'post_excerpt', $pid );
-                    elseif ( $type === 'long' ) $val = get_post_field( 'post_content', $pid );
-                    elseif ( $type === 'title' ) $val = get_post_meta( $pid, '_yoast_wpseo_title', true ) ?: get_post_meta( $pid, 'rank_math_title', true );
-                    elseif ( $type === 'desc' ) $val = get_post_meta( $pid, '_yoast_wpseo_metadesc', true ) ?: get_post_meta( $pid, 'rank_math_description', true );
-                    
-                    if ( empty( $val ) ) {
-                        $target_product = $pid;
-                        break 2;
-                    }
-                }
-            }
-        }
-
-        if ( ! $target_product ) {
-            // If no product in this page needs work, skip to next page
-            as_enqueue_async_action( 'wasgo_process_content_batch', [ $types, $mode, $batch_number + 1 ], 'wasgo-content' );
-            return;
-        }
+        // Get next product from queue
+        $target_product = array_shift( $queue );
+        update_option( 'wasgo_content_queue', $queue );
 
         // Process the product (Ignore global disabled toggles for bulk)
         update_post_meta( $target_product, '_wasgo_processing_content', time() );
-        $result = WASGO_Content_Orchestrator::process_product( $target_product, $types, true );
+        WASGO_Content_Orchestrator::process_product( $target_product, $types, true );
         delete_post_meta( $target_product, '_wasgo_processing_content' );
 
         $processed_count = get_option( 'wasgo_content_processed', 0 );
         update_option( 'wasgo_content_processed', $processed_count + 1 );
 
-        // Continue
-        as_enqueue_async_action( 'wasgo_process_content_batch', [ $types, $mode, $batch_number + 1 ], 'wasgo-content' );
+        // Schedule next immediately
+        as_enqueue_async_action( 'wasgo_process_content_batch', [ $types, $mode ], 'wasgo-content' );
     }
 
     /**

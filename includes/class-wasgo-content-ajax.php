@@ -17,6 +17,8 @@ class WASGO_Content_AJAX {
         add_action( 'wp_ajax_wasgo_generate_single_content', [ $this, 'generate_single' ] );
         add_action( 'wp_ajax_wasgo_content_search_products', [ $this, 'search_preview_products' ] );
         add_action( 'wp_ajax_wasgo_content_get_preview_data', [ $this, 'get_preview_product_data' ] );
+        add_action( 'wp_ajax_wasgo_content_save_review_edit', [ $this, 'save_review_edit' ] );
+        add_action( 'wp_ajax_wasgo_content_regenerate_review', [ $this, 'regenerate_review' ] );
     }
 
     public function search_preview_products() {
@@ -155,5 +157,84 @@ class WASGO_Content_AJAX {
         delete_post_meta( $pid, '_wasgo_processing_content' );
 
         wp_send_json_success( $result );
+    }
+
+    public function save_review_edit() {
+        check_ajax_referer( 'wasgo_ajax_nonce', 'nonce' );
+        $pid     = isset( $_POST['pid'] ) ? intval( $_POST['pid'] ) : 0;
+        $type    = isset( $_POST['type'] ) ? sanitize_text_field( $_POST['type'] ) : '';
+        $content = isset( $_POST['content'] ) ? wp_kses_post( $_POST['content'] ) : '';
+
+        if ( ! $pid || ! $type ) {
+            wp_send_json_error( 'Missing parameters.' );
+        }
+
+        $review_data = get_post_meta( $pid, '_wasgo_content_review', true );
+        if ( is_array( $review_data ) && isset( $review_data[$type] ) ) {
+            $review_data[$type]['content'] = $content;
+            update_post_meta( $pid, '_wasgo_content_review', $review_data );
+            wp_send_json_success();
+        }
+
+        wp_send_json_error( 'Review data not found.' );
+    }
+
+    public function regenerate_review() {
+        check_ajax_referer( 'wasgo_ajax_nonce', 'nonce' );
+        $pid  = isset( $_POST['pid'] ) ? intval( $_POST['pid'] ) : 0;
+        $type = isset( $_POST['type'] ) ? sanitize_text_field( $_POST['type'] ) : '';
+
+        if ( ! $pid || ! $type ) {
+            wp_send_json_error( 'Missing parameters.' );
+        }
+
+        // We use Orchestrator::process_product but we want it to NOT save immediately
+        // Actually, we can just call Generator directly for that type
+        $gen_result = WASGO_Content_Generator::generate_content( $pid, [$type] );
+        if ( is_wp_error( $gen_result ) ) {
+            wp_send_json_error( $gen_result->get_error_message() );
+        }
+
+        $content = isset( $gen_result[$type] ) ? $gen_result[$type] : '';
+        if ( empty( $content ) || $content === 'UNKNOWN' ) {
+            wp_send_json_error( 'AI could not generate new content.' );
+        }
+
+        // Validate the new content
+        $context = [
+            'type'   => $type,
+            'prompt' => get_option( "wasgo_content_{$type}_prompt", '' ),
+            'specs'  => [] // Optionally fetch specs if needed
+        ];
+        $val_result = WASGO_Content_Validator::validate_content( $pid, [ $type => $content ], $context );
+        
+        $score = 0.5; // Default if validation fails
+        $issues = [];
+        if ( ! is_wp_error( $val_result ) ) {
+            $score = isset( $val_result['confidence_score'] ) ? floatval( $val_result['confidence_score'] ) : 0.5;
+            $issues = isset( $val_result['issues'] ) ? $val_result['issues'] : [];
+        }
+
+        // Update the review data
+        $review_data = get_post_meta( $pid, '_wasgo_content_review', true );
+        $review_data[$type] = [
+            'content' => $content,
+            'score'   => $score,
+            'issues'  => $issues
+        ];
+        update_post_meta( $pid, '_wasgo_content_review', $review_data );
+
+        // Determine score color for UI update
+        $score_pct = round( $score * 100 );
+        $score_color = '#ef4444'; 
+        if ( $score >= 0.8 ) $score_color = '#22c55e';
+        elseif ( $score >= 0.5 ) $score_color = '#f59e0b';
+
+        wp_send_json_success( [
+            'content'     => $content,
+            'score_pct'   => $score_pct,
+            'score_color' => $score_color,
+            'issues'      => $issues
+        ] );
     }
 }

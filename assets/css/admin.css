@@ -553,3 +553,97 @@
         position: static;
     }
 }
+/* -------------------------------------------------------------
+   Content Review Studio Buttons
+------------------------------------------------------------- */
+.wasgo-studio-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    height: 32px !important;
+    min-width: 100px !important;
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+    border: 1px solid transparent !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+}
+
+.wasgo-studio-btn .dashicons {
+    font-size: 16px !important;
+    width: 16px !important;
+    height: 16px !important;
+    line-height: 16px !important;
+    margin: 0 !important;
+}
+
+/* Color Variants */
+.wasgo-studio-btn.btn-approve {
+    background: #10b981 !important;
+    border-color: #059669 !important;
+    color: #ffffff !important;
+}
+.wasgo-studio-btn.btn-approve:hover {
+    background: #059669 !important;
+    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2) !important;
+}
+
+.wasgo-studio-btn.btn-discard {
+    background: #ffffff !important;
+    border-color: #fca5a5 !important;
+    color: #ef4444 !important;
+}
+.wasgo-studio-btn.btn-discard:hover {
+    background: #fef2f2 !important;
+    border-color: #ef4444 !important;
+}
+
+.wasgo-studio-btn.btn-edit {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color: #475569 !important;
+}
+.wasgo-studio-btn.btn-edit:hover {
+    background: #f8fafc !important;
+    border-color: #64748b !important;
+    color: #1e293b !important;
+}
+
+.wasgo-studio-btn.btn-save {
+    background: #3b82f6 !important;
+    border-color: #2563eb !important;
+    color: #ffffff !important;
+}
+.wasgo-studio-btn.btn-save:hover {
+    background: #2563eb !important;
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2) !important;
+}
+
+.wasgo-studio-btn.btn-regenerate {
+    background: #f59e0b !important;
+    border-color: #d97706 !important;
+    color: #ffffff !important;
+}
+.wasgo-studio-btn.btn-regenerate:hover {
+    background: #d97706 !important;
+    box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.2) !important;
+}
+
+.wasgo-studio-btn:disabled {
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+}
+
+.wasgo-studio-btn.updating .dashicons {
+    animation: wasgo-spin 1s infinite linear;
+}
+
+@keyframes wasgo-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}

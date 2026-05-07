@@ -805,6 +805,107 @@ jQuery(document).ready(function($) {
         }
     });
 
+    // -------------------------------------------------------------
+    // Content Review Studio (Edit/Regenerate)
+    // -------------------------------------------------------------
+    
+    // Toggle Edit Mode
+    $(document).on('click', '.wasgo-review-edit-btn', function() {
+        let $row = $(this).closest('tr');
+        $row.find('.wasgo-review-static-content').hide();
+        $row.find('.wasgo-review-edit-content').show().focus();
+        $(this).hide();
+        $row.find('.wasgo-review-save-btn').show();
+    });
+
+    // Save Manual Edit
+    $(document).on('click', '.wasgo-review-save-btn', function() {
+        let $btn = $(this);
+        let pid = $btn.data('pid');
+        let type = $btn.data('type');
+        let $row = $btn.closest('tr');
+        let content = $row.find('.wasgo-review-edit-content').val();
+
+        $btn.attr('disabled', 'disabled').addClass('updating');
+
+        $.ajax({
+            url: wasgo_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'wasgo_content_save_review_edit',
+                nonce: wasgo_ajax.nonce,
+                pid: pid,
+                type: type,
+                content: content
+            },
+            success: function(response) {
+                if (response.success) {
+                    $row.find('.wasgo-review-static-content').html(content.replace(/\n/g, '<br>')).show();
+                    $row.find('.wasgo-review-edit-content').hide();
+                    $btn.hide().removeAttr('disabled').removeClass('updating');
+                    $row.find('.wasgo-review-edit-btn').show();
+                } else {
+                    alert('Error saving edit: ' + response.data);
+                    $btn.removeAttr('disabled').removeClass('updating');
+                }
+            }
+        });
+    });
+
+    // Regenerate Content
+    $(document).on('click', '.wasgo-review-regenerate-btn', function() {
+        let $btn = $(this);
+        let pid = $btn.data('pid');
+        let type = $btn.data('type');
+        let $row = $btn.closest('tr');
+
+        if (!confirm('Are you sure you want to regenerate this content? The current version will be replaced.')) return;
+
+        $btn.attr('disabled', 'disabled').addClass('updating').find('.dashicons').addClass('spin');
+
+        $.ajax({
+            url: wasgo_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'wasgo_content_regenerate_review',
+                nonce: wasgo_ajax.nonce,
+                pid: pid,
+                type: type
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Update content
+                    $row.find('.wasgo-review-static-content').html(response.data.content.replace(/\n/g, '<br>'));
+                    $row.find('.wasgo-review-edit-content').val(response.data.content);
+                    
+                    // Update score
+                    let $badge = $row.find('.wasgo-review-score-badge');
+                    $badge.text(response.data.score_pct + '%').css({
+                        'background': response.data.score_color + '10',
+                        'color': response.data.score_color,
+                        'border-color': response.data.score_color + '30'
+                    });
+
+                    // Update issues
+                    let $issuesList = $row.find('.wasgo-review-issues-container ul');
+                    $issuesList.empty();
+                    if (response.data.issues.length > 0) {
+                        response.data.issues.forEach(function(issue) {
+                            $issuesList.append('<li style="margin-bottom: 6px; display: flex; gap: 6px; align-items: flex-start;"><span class="dashicons dashicons-warning" style="font-size: 14px; width:14px; height:14px; margin-top: 2px;"></span><span>' + issue + '</span></li>');
+                        });
+                    } else {
+                        $issuesList.append('<li style="display: flex; gap: 6px; align-items: flex-start;"><span class="dashicons dashicons-warning" style="font-size: 14px; width:14px; height:14px; margin-top: 2px;"></span><span>Low confidence score</span></li>');
+                    }
+
+                    $btn.removeAttr('disabled').removeClass('updating').find('.dashicons').removeClass('spin');
+                } else {
+                    alert('Regeneration failed: ' + response.data);
+                    $btn.removeAttr('disabled').removeClass('updating').find('.dashicons').removeClass('spin');
+                }
+            }
+        });
+    });
+
     // Initial run
     updatePromptPreview();
 

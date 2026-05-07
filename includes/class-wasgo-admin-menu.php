@@ -771,11 +771,11 @@ class WASGO_Admin_Menu {
             <table class="wp-list-table widefat fixed striped">
                         <thead>
                     <tr>
-                        <th style="width: 20%; padding-left: 20px;">Product Info</th>
-                        <th style="width: 35%;">Generated Content Preview</th>
+                        <th style="width: 15%; padding-left: 20px;">Product Info</th>
+                        <th style="width: 30%;">Generated Content Preview</th>
                         <th style="width: 15%;">Risk / Reason</th>
-                        <th style="width: 15%; text-align: center;">Validation Score</th>
-                        <th style="width: 15%; text-align: right; padding-right: 20px;">Actions</th>
+                        <th style="width: 10%; text-align: center;">Score</th>
+                        <th style="width: 30%; text-align: right; padding-right: 20px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="wasgo-content-review-body">
@@ -796,36 +796,72 @@ class WASGO_Admin_Menu {
                         ?>
                         <tr id="review-row-<?php echo $pid; ?>-<?php echo $type; ?>">
                             <td style="padding-left: 20px;">
-                                <strong><a href="<?php echo get_edit_post_link( $pid ); ?>" target="_blank"><?php the_title(); ?></a></strong>
-                                <div style="font-size: 11px; color: #64748b; margin-top: 5px;">
-                                    Type: <span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px;"><?php echo $type_label; ?></span>
-                                </div>
-                            </td>
-                            <td>
-                                <div style="max-height: 100px; overflow-y: auto; font-size: 13px; line-height: 1.4; color: #475569; border: 1px solid #f1f5f9; padding: 10px; border-radius: 6px; background: #fff;">
-                                    <?php echo nl2br( esc_html( $data['content'] ) ); ?>
-                                </div>
-                            </td>
-                            <td>
-                                <ul style="margin:0; padding:0; list-style:none; font-size: 12px; color: #ef4444;">
-                                    <?php if ( ! empty( $data['issues'] ) ) : foreach ( $data['issues'] as $issue ) : ?>
-                                        <li style="margin-bottom: 4px;">• <?php echo esc_html( $issue ); ?></li>
-                                    <?php endforeach; else: ?>
-                                        <li>• Low confidence score</li>
+                                <div style="display: flex; gap: 12px; align-items: center;">
+                                    <?php if ( has_post_thumbnail( $pid ) ) : ?>
+                                        <div style="flex-shrink: 0; width: 50px; height: 50px; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
+                                            <?php echo get_the_post_thumbnail( $pid, [50, 50], ['style' => 'width:100%; height:auto; display:block;'] ); ?>
+                                        </div>
                                     <?php endif; ?>
-                                </ul>
+                                    <div>
+                                        <strong><a href="<?php echo get_edit_post_link( $pid ); ?>" target="_blank" style="text-decoration: none; color: #1e293b;"><?php the_title(); ?></a></strong>
+                                        <div style="font-size: 11px; color: #64748b; margin-top: 5px;">
+                                            Type: <span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #475569;"><?php echo $type_label; ?></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="wasgo-review-content-container">
+                                    <div class="wasgo-review-static-content" style="max-height: 120px; overflow-y: auto; font-size: 13px; line-height: 1.5; color: #334155; border: 1px solid #f1f5f9; padding: 12px; border-radius: 8px; background: #fff; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
+                                        <?php echo nl2br( esc_html( $data['content'] ) ); ?>
+                                    </div>
+                                    <textarea class="wasgo-review-edit-content" style="display:none; width: 100%; height: 120px; font-size: 13px; line-height: 1.5; padding: 10px; border-radius: 8px; border: 1px solid #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1);"><?php echo esc_textarea( $data['content'] ); ?></textarea>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="wasgo-review-issues-container">
+                                    <ul style="margin:0; padding:0; list-style:none; font-size: 12px; color: #ef4444;">
+                                        <?php if ( ! empty( $data['issues'] ) ) : foreach ( $data['issues'] as $issue ) : ?>
+                                            <li style="margin-bottom: 6px; display: flex; gap: 6px; align-items: flex-start;">
+                                                <span class="dashicons dashicons-warning" style="font-size: 14px; width:14px; height:14px; margin-top: 2px;"></span>
+                                                <span><?php echo esc_html( $issue ); ?></span>
+                                            </li>
+                                        <?php endforeach; else: ?>
+                                            <li style="display: flex; gap: 6px; align-items: flex-start;">
+                                                <span class="dashicons dashicons-warning" style="font-size: 14px; width:14px; height:14px; margin-top: 2px;"></span>
+                                                <span>Low confidence score</span>
+                                            </li>
+                                        <?php endif; ?>
+                                    </ul>
+                                </div>
                             </td>
                             <td style="text-align: center; vertical-align: middle;">
-                                <div style="display:inline-block; padding: 6px 12px; border-radius: 20px; background: <?php echo $score_color; ?>10; color: <?php echo $score_color; ?>; font-weight: bold; border: 1px solid <?php echo $score_color; ?>30;">
+                                <div class="wasgo-review-score-badge" style="display:inline-block; padding: 6px 12px; border-radius: 20px; background: <?php echo $score_color; ?>10; color: <?php echo $score_color; ?>; font-weight: bold; border: 1px solid <?php echo $score_color; ?>30; font-size: 12px;">
                                     <?php echo $score_pct; ?>%
                                 </div>
                             </td>
-                            <td style="text-align: right; padding-right: 20px; vertical-align: middle;">
-                                <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                                    <button type="button" class="wasgo-review-action button button-primary button-small" 
-                                            data-action="approve" data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>">Approve</button>
-                                    <button type="button" class="wasgo-review-action button button-secondary button-small" 
-                                            data-action="discard" data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>" style="color: #ef4444; border-color: #ef4444;">Discard</button>
+                            <td style="text-align: right; padding-right: 20px; padding-left: 20px; vertical-align: middle;">
+                                <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
+                                    <div style="display: flex; gap: 8px;">
+                                        <button type="button" class="wasgo-studio-btn btn-edit wasgo-review-edit-btn" 
+                                                data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>" title="Edit Content">
+                                            <span class="dashicons dashicons-edit"></span> Edit
+                                        </button>
+                                        <button type="button" class="wasgo-studio-btn btn-save wasgo-review-save-btn" 
+                                                data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>" style="display:none;">
+                                            <span class="dashicons dashicons-saved"></span> Save
+                                        </button>
+                                        <button type="button" class="wasgo-studio-btn btn-regenerate wasgo-review-regenerate-btn" 
+                                                data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>">
+                                            <span class="dashicons dashicons-update"></span> Regenerate
+                                        </button>
+                                    </div>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button type="button" class="wasgo-studio-btn btn-approve wasgo-review-action" 
+                                                data-action="approve" data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>">Approve</button>
+                                        <button type="button" class="wasgo-studio-btn btn-discard wasgo-review-action" 
+                                                data-action="discard" data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>">Discard</button>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
