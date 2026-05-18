@@ -443,8 +443,16 @@ class WASGO_Content_Orchestrator {
 
         // The SEO Framework (TSF)
         if ( defined( 'THE_SEO_FRAMEWORK_VERSION' ) ) {
-            $meta_key = ( $field_type === 'title' ) ? '_genesis_title' : '_genesis_description';
-            update_term_meta( $term_id, $meta_key, $value );
+            $settings = get_term_meta( $term_id, 'autodescription-term-settings', true );
+            if ( ! is_array( $settings ) ) {
+                $settings = [];
+            }
+            if ( $field_type === 'title' ) {
+                $settings['doctitle'] = $value;
+            } else {
+                $settings['description'] = $value;
+            }
+            update_term_meta( $term_id, 'autodescription-term-settings', $settings );
         }
 
         // Generic Fallback

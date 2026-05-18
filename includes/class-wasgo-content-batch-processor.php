@@ -155,18 +155,22 @@ class WASGO_Content_Batch_Processor {
                     continue;
                 }
 
+                $tsf_settings = get_term_meta( $term_id, 'autodescription-term-settings', true );
+                $tsf_title = is_array( $tsf_settings ) && isset( $tsf_settings['doctitle'] ) ? $tsf_settings['doctitle'] : '';
+                $tsf_desc = is_array( $tsf_settings ) && isset( $tsf_settings['description'] ) ? $tsf_settings['description'] : '';
+
                 $needs_work = false;
                 foreach ( $types as $type ) {
                     $val = '';
                     if ( $type === 'cat_title' ) {
                         $val = get_term_meta( $term_id, 'wpseo_title', true ) ?: 
                                get_term_meta( $term_id, 'rank_math_title', true ) ?: 
-                               get_term_meta( $term_id, '_genesis_title', true ) ?:
+                               $tsf_title ?:
                                get_term_meta( $term_id, '_wasgo_ai_title', true );
                     } elseif ( $type === 'cat_desc' ) {
                         $val = get_term_meta( $term_id, 'wpseo_desc', true ) ?: 
                                get_term_meta( $term_id, 'rank_math_description', true ) ?: 
-                               get_term_meta( $term_id, '_genesis_description', true ) ?:
+                               $tsf_desc ?:
                                get_term_meta( $term_id, '_wasgo_ai_description', true );
                     }
 
