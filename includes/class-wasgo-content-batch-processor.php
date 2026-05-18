@@ -24,9 +24,10 @@ class WASGO_Content_Batch_Processor {
     public static function start_bulk( $types, $mode, $resume = false ) {
         $old_types = get_option( 'wasgo_content_bulk_types', [] );
         $old_mode  = get_option( 'wasgo_content_bulk_mode', '' );
+        $status    = get_option( 'wasgo_content_bulk_status', '' );
 
-        // If types or mode changed, we MUST NOT resume. We must start fresh.
-        if ( serialize( $types ) !== serialize( $old_types ) || $mode !== $old_mode ) {
+        // If types or mode changed, or if the last run finished, we MUST NOT resume. We must start fresh.
+        if ( serialize( $types ) !== serialize( $old_types ) || $mode !== $old_mode || $status === 'finished' ) {
             $resume = false;
         }
 
