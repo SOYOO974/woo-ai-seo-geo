@@ -12,6 +12,8 @@ class WASGO_Meta_Boxes {
     public function __construct() {
         add_action( 'add_meta_boxes', [ $this, 'add_product_ai_controls' ] );
         add_action( 'save_post', [ $this, 'save_ai_controls' ] );
+        add_action( 'product_cat_edit_form_fields', [ $this, 'render_category_ai_controls' ] );
+        add_action( 'edited_product_cat', [ $this, 'save_category_ai_controls' ] );
     }
 
     public function add_product_ai_controls() {
@@ -280,6 +282,149 @@ class WASGO_Meta_Boxes {
             update_post_meta( $post_id, '_wasgo_disable_ai_gen', '1' );
         } else {
             delete_post_meta( $post_id, '_wasgo_disable_ai_gen' );
+        }
+    }
+
+    public function render_category_ai_controls( $term ) {
+        $term_id = $term->term_id;
+        
+        $ai_meta = get_term_meta( $term_id, '_wasgo_ai_fields', true );
+        if ( ! is_array( $ai_meta ) ) $ai_meta = [];
+        
+        $review_data = get_term_meta( $term_id, '_wasgo_content_review', true );
+        if ( ! is_array( $review_data ) ) $review_data = [];
+
+        $is_disabled = get_term_meta( $term_id, '_wasgo_disable_cat_ai_gen', true );
+
+        $types = [
+            'cat_title' => 'Meta Title (Category)',
+            'cat_desc'  => 'Meta Description (Category)'
+        ];
+
+        wp_nonce_field( 'wasgo_cat_ai_controls_save', 'wasgo_cat_ai_controls_nonce' );
+        ?>
+        <tr class="form-field">
+            <th scope="row" valign="top"><label>AI Category SEO</label></th>
+            <td>
+                <div class="wasgo-category-seo-panel" style="background: #fff; border: 1px solid #c3c4c7; padding: 20px; border-radius: 8px; max-width: 600px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="_wasgo_disable_cat_ai_gen" value="1" <?php checked( $is_disabled, '1' ); ?>>
+                            <span>Disable Auto AI SEO Generation</span>
+                        </label>
+                        <p class="description" style="margin-left: 24px; margin-top: 4px;">If checked, automated or bulk generation actions will skip this category.</p>
+                    </div>
+
+                    <div style="border-top: 1px solid #e2e8f0; margin-top: 15px; padding-top: 15px;">
+                        <strong style="display: block; margin-bottom: 12px; color: #334155;">Generation Options:</strong>
+                        <?php foreach ( $types as $key => $label ) : 
+                            $is_ai = in_array( $key, $ai_meta );
+                            $needs_review = isset( $review_data[$key] );
+                            
+                            $badge_text = '';
+                            $badge_color = '';
+                            
+                            if ( $needs_review ) {
+                                $badge_text = 'Needs Review';
+                                $badge_color = '#f59e0b';
+                            } elseif ( $is_ai ) {
+                                $badge_text = 'AI Optimized';
+                                $badge_color = '#10b981';
+                            }
+                        ?>
+                            <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500;">
+                                    <input type="checkbox" class="wasgo-single-cat-gen-type" value="<?php echo $key; ?>" checked>
+                                    <span><?php echo $label; ?></span>
+                                </label>
+                                <?php if ( $badge_text ) : ?>
+                                    <span style="font-size: 10px; padding: 2px 8px; border-radius: 12px; background: <?php echo $badge_color; ?>15; color: <?php echo $badge_color; ?>; border: 1px solid <?php echo $badge_color; ?>30; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">
+                                        <?php echo $badge_text; ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <div style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                        <button type="button" id="wasgo-generate-single-cat-btn" class="button button-primary" style="width: 100%; height: 40px; border-radius: 6px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <span class="dashicons dashicons-admin-generic" style="font-size: 18px; width: 18px; height: 18px; margin: 0;"></span>
+                            Generate Selected SEO Content
+                        </button>
+                        <div id="wasgo-single-cat-status" style="margin-top: 12px; font-size: 13px; text-align: center; color: #64748b; display: none; align-items: center; justify-content: center; gap: 8px;">
+                            <span class="spinner is-active" style="float: none; margin: 0;"></span>
+                            <span class="status-msg">Invoking AI Engine...</span>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+
+        <script>
+        jQuery(document).ready(function($) {
+            $('#wasgo-generate-single-cat-btn').on('click', function(e) {
+                e.preventDefault();
+                
+                var types = [];
+                $('.wasgo-single-cat-gen-type:checked').each(function() {
+                    types.push($(this).val());
+                });
+
+                if (types.length === 0) {
+                    alert('Please select at least one content type.');
+                    return;
+                }
+
+                if (!confirm('This will use AI to generate the selected SEO content for this category. Existing AI content will be overwritten. Continue?')) return;
+
+                var $btn = $(this);
+                var $status = $('#wasgo-single-cat-status');
+                
+                $btn.attr('disabled', 'disabled');
+                $status.css('display', 'flex').fadeIn();
+
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'wasgo_generate_single_category',
+                        term_id: <?php echo $term_id; ?>,
+                        types: types,
+                        nonce: '<?php echo wp_create_nonce("wasgo_ajax_nonce"); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $status.find('.status-msg').text('Success! Refreshing...');
+                            setTimeout(function() {
+                                location.reload();
+                            }, 1000);
+                        } else {
+                            alert('Error: ' + response.data);
+                            $btn.removeAttr('disabled');
+                            $status.hide();
+                        }
+                    },
+                    error: function() {
+                        alert('Server error occurred.');
+                        $btn.removeAttr('disabled');
+                        $status.hide();
+                    }
+                });
+            });
+        });
+        </script>
+        <?php
+    }
+
+    public function save_category_ai_controls( $term_id ) {
+        if ( ! isset( $_POST['wasgo_cat_ai_controls_nonce'] ) || ! wp_verify_nonce( $_POST['wasgo_cat_ai_controls_nonce'], 'wasgo_cat_ai_controls_save' ) ) {
+            return;
+        }
+
+        if ( isset( $_POST['_wasgo_disable_cat_ai_gen'] ) ) {
+            update_term_meta( $term_id, '_wasgo_disable_cat_ai_gen', '1' );
+        } else {
+            delete_term_meta( $term_id, '_wasgo_disable_cat_ai_gen' );
         }
     }
 }

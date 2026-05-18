@@ -63,25 +63,88 @@ class WASGO_Admin_Menu {
             wp_enqueue_style( 'wasgo-admin-css', WASGO_PLUGIN_URL . 'assets/css/admin.css', [], WASGO_VERSION );
             wp_enqueue_script( 'wasgo-admin-js', WASGO_PLUGIN_URL . 'assets/js/admin.js', [ 'jquery' ], WASGO_VERSION, true );
             
-            $sample_product_id = 0;
-            $sample_data = [
-                'title' => 'Sample Product Name',
-                'cats'  => 'Electronics > Laptops',
-                'attrs' => "Color: Silver\nRAM: 16GB",
-                'lang'  => WASGO_Settings::get_content_language(),
-                'image' => '',
-                'req_img' => WASGO_Settings::is_image_required()
-            ];
+            $sub_tab = isset( $_GET['sub_tab'] ) ? sanitize_text_field( $_GET['sub_tab'] ) : '';
+            if ( in_array( $sub_tab, [ 'cat_title', 'cat_desc' ] ) ) {
+                $sample_data = [
+                    'title'           => 'Sample Category Name',
+                    'desc'            => 'Sample Organic Category Description',
+                    'parent'          => 'Parent Category Name',
+                    'count'           => 12,
+                    'image'           => '',
+                    'sample_products' => 'Sample Product 1, Sample Product 2, Sample Product 3',
+                    'lang'            => WASGO_Settings::get_content_language(),
+                    'req_img'         => false
+                ];
 
-            $latest = get_posts(['post_type' => 'product', 'posts_per_page' => 1, 'post_status' => 'publish', 'fields' => 'ids']);
-            if ( ! empty( $latest ) ) {
-                $pid = $latest[0];
-                $sample_data['title'] = get_the_title( $pid );
-                $sample_data['cats']  = WASGO_Content_Utility::get_product_categories_string( $pid );
-                $sample_data['attrs'] = WASGO_Content_Utility::get_product_attributes_string( $pid );
-                $img_id = get_post_thumbnail_id( $pid );
-                if ( $img_id ) {
-                    $sample_data['image'] = wp_get_attachment_thumb_url( $img_id );
+                $terms = get_terms( [
+                    'taxonomy'   => 'product_cat',
+                    'number'     => 1,
+                    'orderby'    => 'count',
+                    'order'      => 'DESC',
+                    'hide_empty' => false
+                ] );
+
+                if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+                    $term = $terms[0];
+                    $sample_data['title'] = $term->name;
+                    $sample_data['desc']  = $term->description ?: 'None';
+                    
+                    $parent_name = 'None';
+                    if ( $term->parent ) {
+                        $parent_term = get_term( $term->parent, 'product_cat' );
+                        if ( $parent_term && ! is_wp_error( $parent_term ) ) {
+                            $parent_name = $parent_term->name;
+                        }
+                    }
+                    $sample_data['parent'] = $parent_name;
+                    $sample_data['count']  = $term->count;
+
+                    $img_id = get_term_meta( $term->term_id, 'thumbnail_id', true );
+                    if ( $img_id ) {
+                        $sample_data['image'] = wp_get_attachment_thumb_url( $img_id );
+                    }
+
+                    $products = get_posts( [
+                        'post_type'      => 'product',
+                        'posts_per_page' => 3,
+                        'post_status'    => 'publish',
+                        'tax_query'      => [
+                            [
+                                'taxonomy' => 'product_cat',
+                                'field'    => 'term_id',
+                                'terms'    => $term->term_id
+                            ]
+                        ]
+                    ] );
+
+                    $product_titles = [];
+                    foreach ( $products as $p ) {
+                        $product_titles[] = $p->post_title;
+                    }
+                    $sample_data['sample_products'] = ! empty( $product_titles ) ? implode( ', ', $product_titles ) : 'No products inside this category.';
+                } else {
+                    $sample_data['is_empty'] = true;
+                }
+            } else {
+                $sample_data = [
+                    'title' => 'Sample Product Name',
+                    'cats'  => 'Electronics > Laptops',
+                    'attrs' => "Color: Silver\nRAM: 16GB",
+                    'lang'  => WASGO_Settings::get_content_language(),
+                    'image' => '',
+                    'req_img' => WASGO_Settings::is_image_required()
+                ];
+
+                $latest = get_posts(['post_type' => 'product', 'posts_per_page' => 1, 'post_status' => 'publish', 'fields' => 'ids']);
+                if ( ! empty( $latest ) ) {
+                    $pid = $latest[0];
+                    $sample_data['title'] = get_the_title( $pid );
+                    $sample_data['cats']  = WASGO_Content_Utility::get_product_categories_string( $pid );
+                    $sample_data['attrs'] = WASGO_Content_Utility::get_product_attributes_string( $pid );
+                    $img_id = get_post_thumbnail_id( $pid );
+                    if ( $img_id ) {
+                        $sample_data['image'] = wp_get_attachment_thumb_url( $img_id );
+                    }
                 }
             }
 
@@ -501,14 +564,21 @@ class WASGO_Admin_Menu {
 
     private function render_content_tab_prompt() {
         $sub_tab = isset( $_GET['sub_tab'] ) ? sanitize_text_field( $_GET['sub_tab'] ) : 'short';
-        $specs = WASGO_Content_Utility::get_available_specs();
         
         $tabs = [
-            'short' => 'Short Description',
-            'long'  => 'Long Description',
-            'title' => 'Meta Title',
-            'desc'  => 'Meta Description'
+            'short'     => 'Short Description',
+            'long'      => 'Long Description',
+            'title'     => 'Meta Title',
+            'desc'      => 'Meta Description',
+            'cat_title' => 'Meta Title (Category)',
+            'cat_desc'  => 'Meta Description (Category)'
         ];
+
+        if ( in_array( $sub_tab, [ 'cat_title', 'cat_desc' ] ) ) {
+            $specs = [ 'category_description', 'parent_category', 'product_count', 'latest_products' ];
+        } else {
+            $specs = WASGO_Content_Utility::get_available_specs();
+        }
         ?>
         <div class="wasgo-sub-tab-wrapper">
             <?php foreach ( $tabs as $key => $label ) : ?>
@@ -521,10 +591,12 @@ class WASGO_Admin_Menu {
 
         <?php
         $settings_map = [
-            'short' => [ 'group' => 'wasgo_content_short_group', 'prompt' => 'wasgo_content_short_prompt', 'specs' => 'wasgo_content_short_specs' ],
-            'long'  => [ 'group' => 'wasgo_content_long_group', 'prompt' => 'wasgo_content_long_prompt', 'specs' => 'wasgo_content_long_specs' ],
-            'title' => [ 'group' => 'wasgo_content_title_group', 'prompt' => 'wasgo_content_title_prompt', 'specs' => 'wasgo_content_title_specs' ],
-            'desc'  => [ 'group' => 'wasgo_content_desc_group', 'prompt' => 'wasgo_content_desc_prompt', 'specs' => 'wasgo_content_desc_specs' ],
+            'short'     => [ 'group' => 'wasgo_content_short_group', 'prompt' => 'wasgo_content_short_prompt', 'specs' => 'wasgo_content_short_specs' ],
+            'long'      => [ 'group' => 'wasgo_content_long_group', 'prompt' => 'wasgo_content_long_prompt', 'specs' => 'wasgo_content_long_specs' ],
+            'title'     => [ 'group' => 'wasgo_content_title_group', 'prompt' => 'wasgo_content_title_prompt', 'specs' => 'wasgo_content_title_specs' ],
+            'desc'      => [ 'group' => 'wasgo_content_desc_group', 'prompt' => 'wasgo_content_desc_prompt', 'specs' => 'wasgo_content_desc_specs' ],
+            'cat_title' => [ 'group' => 'wasgo_content_cat_title_group', 'prompt' => 'wasgo_content_cat_title_prompt', 'specs' => 'wasgo_content_cat_title_specs' ],
+            'cat_desc'  => [ 'group' => 'wasgo_content_cat_desc_group', 'prompt' => 'wasgo_content_cat_desc_prompt', 'specs' => 'wasgo_content_cat_desc_specs' ],
         ];
 
         $current = $settings_map[$sub_tab];
@@ -549,16 +621,26 @@ class WASGO_Admin_Menu {
                             Define the custom instructions for this content type.
                         </p>
 
+                        <?php 
+                        $prompt_val = get_option( $current['prompt'] );
+                        if ( empty( $prompt_val ) ) {
+                            if ( $sub_tab === 'cat_title' ) {
+                                $prompt_val = "Write a high-converting, professional, and SEO-optimized meta title for this product category.\nThe meta title should be compelling, incorporate the category name naturally, and stay within 50-60 characters for maximum search engine click-through rates.";
+                            } elseif ( $sub_tab === 'cat_desc' ) {
+                                $prompt_val = "Write an engaging, SEO-optimized meta description for this product category.\nIt should entice searchers to click, describe what products they will find in this category, and contain a clear call to action while strictly staying within 150-160 characters.";
+                            }
+                        }
+                        ?>
                         <textarea id="wasgo-prompt-input" name="<?php echo $current['prompt']; ?>" rows="10" 
                                   placeholder="e.g. Write a catchy and professional <?php echo strtolower($tabs[$sub_tab]); ?>..."
-                                  data-type="<?php echo $sub_tab; ?>"><?php echo esc_textarea( get_option( $current['prompt'] ) ); ?></textarea>
+                                  data-type="<?php echo $sub_tab; ?>"><?php echo esc_textarea( $prompt_val ); ?></textarea>
 
                         <div class="wasgo-specs-title">
                             <span class="dashicons dashicons-list-view"></span>
-                            Useful Specs to Include
+                            <?php echo in_array( $sub_tab, [ 'cat_title', 'cat_desc' ] ) ? 'Useful Information to Include' : 'Useful Specs to Include'; ?>
                         </div>
                         <p class="description" style="margin-bottom:15px;">
-                            Select which product details should be dynamically attached.
+                            <?php echo in_array( $sub_tab, [ 'cat_title', 'cat_desc' ] ) ? 'Select which category details should be dynamically attached.' : 'Select which product details should be dynamically attached.'; ?>
                         </p>
 
                         <div class="wasgo-specs-container">
@@ -568,7 +650,19 @@ class WASGO_Admin_Menu {
                                            class="wasgo-spec-checkbox"
                                            value="<?php echo esc_attr( $spec ); ?>" 
                                            <?php checked( in_array( $spec, $saved_specs ) ); ?>>
-                                    <?php echo esc_html( str_replace( '_', ' ', $spec ) ); ?>
+                                    <?php 
+                                    if ( in_array( $sub_tab, [ 'cat_title', 'cat_desc' ] ) ) {
+                                        $label_map = [
+                                            'category_description' => 'Category Description',
+                                            'parent_category'      => 'Parent Category',
+                                            'product_count'        => 'Total Product Count',
+                                            'latest_products'      => 'Include Latest 3 Products'
+                                        ];
+                                        echo esc_html( isset( $label_map[$spec] ) ? $label_map[$spec] : $spec );
+                                    } else {
+                                        echo esc_html( str_replace( '_', ' ', $spec ) ); 
+                                    }
+                                    ?>
                                 </label>
                             <?php endforeach; ?>
                         </div>
@@ -589,7 +683,7 @@ class WASGO_Admin_Menu {
                             </div>
                             <div class="wasgo-preview-search-container">
                                 <span class="dashicons dashicons-search"></span>
-                                <input type="text" id="wasgo-preview-search" placeholder="Search product to test...">
+                                <input type="text" id="wasgo-preview-search" placeholder="<?php echo in_array( $sub_tab, [ 'cat_title', 'cat_desc' ] ) ? 'Search category to test...' : 'Search product to test...'; ?>">
                                 <div id="wasgo-preview-search-results" class="wasgo-search-dropdown" style="display:none;"></div>
                             </div>
                         </div>
@@ -632,11 +726,19 @@ class WASGO_Admin_Menu {
                                 <input type="checkbox" name="wasgo_content_disable_title" value="1" <?php checked( 1, get_option( 'wasgo_content_disable_title', 0 ) ); ?> />
                                 Meta Title
                             </label>
-                            <label style="display: block;">
+                            <label style="display: block; margin-bottom: 8px;">
                                 <input type="checkbox" name="wasgo_content_disable_desc" value="1" <?php checked( 1, get_option( 'wasgo_content_disable_desc', 0 ) ); ?> />
                                 Meta Description
                             </label>
-                            <p class="description">Disabled fields will not be generated during single product edits or auto-processing. <strong>Note:</strong> Bulk Actions will ignore these settings.</p>
+                            <label style="display: block; margin-bottom: 8px;">
+                                <input type="checkbox" name="wasgo_content_disable_cat_title" value="1" <?php checked( 1, get_option( 'wasgo_content_disable_cat_title', 0 ) ); ?> />
+                                Meta Title (Category)
+                            </label>
+                            <label style="display: block;">
+                                <input type="checkbox" name="wasgo_content_disable_cat_desc" value="1" <?php checked( 1, get_option( 'wasgo_content_disable_cat_desc', 0 ) ); ?> />
+                                Meta Description (Category)
+                            </label>
+                            <p class="description">Disabled fields will not be generated during single item edits or auto-processing. <strong>Note:</strong> Bulk Actions will ignore these settings.</p>
                         </td>
                     </tr>
                     <tr>
@@ -716,6 +818,12 @@ class WASGO_Admin_Menu {
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                             <input type="checkbox" name="wasgo_content_bulk_types[]" value="desc" checked> Meta Description
                         </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" name="wasgo_content_bulk_types[]" value="cat_title"> Category Meta Title
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" name="wasgo_content_bulk_types[]" value="cat_desc"> Category Meta Description
+                        </label>
                     </div>
 
                     <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
@@ -766,12 +874,24 @@ class WASGO_Admin_Menu {
             ]
         ];
         $query = new WP_Query( $args );
+
+        $category_args = [
+            'taxonomy'   => 'product_cat',
+            'hide_empty' => false,
+            'meta_query' => [
+                [
+                    'key'   => '_wasgo_needs_review',
+                    'value' => '1'
+                ]
+            ]
+        ];
+        $review_categories = get_terms( $category_args );
         ?>
         <div class="wasgo-admin-card" style="padding:0; overflow:hidden;">
             <table class="wp-list-table widefat fixed striped">
-                        <thead>
+                <thead>
                     <tr>
-                        <th style="width: 15%; padding-left: 20px;">Product Info</th>
+                        <th style="width: 15%; padding-left: 20px;">Item Info</th>
                         <th style="width: 30%;">Generated Content Preview</th>
                         <th style="width: 15%;">Risk / Reason</th>
                         <th style="width: 10%; text-align: center;">Score</th>
@@ -779,98 +899,210 @@ class WASGO_Admin_Menu {
                     </tr>
                 </thead>
                 <tbody id="wasgo-content-review-body">
-                    <?php if ( $query->have_posts() ) : while ( $query->have_posts() ) : $query->the_post(); 
-                        $pid = get_the_ID();
-                        $review_data = get_post_meta( $pid, '_wasgo_content_review', true );
-                        if ( ! is_array( $review_data ) ) continue;
+                    <?php 
+                    $has_items = false;
 
-                        foreach ( $review_data as $type => $data ) :
-                            $type_label = str_replace( ['short', 'long', 'title', 'desc'], ['Short Desc', 'Long Desc', 'Meta Title', 'Meta Desc'], $type );
-                            $score = isset( $data['score'] ) ? floatval( $data['score'] ) : 0;
-                            $score_pct = round( $score * 100 );
-                            
-                            // Determine score color
-                            $score_color = '#ef4444'; // Red
-                            if ( $score >= 0.8 ) $score_color = '#22c55e'; // Green
-                            elseif ( $score >= 0.5 ) $score_color = '#f59e0b'; // Amber
-                        ?>
-                        <tr id="review-row-<?php echo $pid; ?>-<?php echo $type; ?>">
-                            <td style="padding-left: 20px;">
-                                <div style="display: flex; gap: 12px; align-items: center;">
-                                    <?php if ( has_post_thumbnail( $pid ) ) : ?>
-                                        <div style="flex-shrink: 0; width: 50px; height: 50px; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
-                                            <?php echo get_the_post_thumbnail( $pid, [50, 50], ['style' => 'width:100%; height:auto; display:block;'] ); ?>
-                                        </div>
-                                    <?php endif; ?>
-                                    <div>
-                                        <strong><a href="<?php echo get_edit_post_link( $pid ); ?>" target="_blank" style="text-decoration: none; color: #1e293b;"><?php the_title(); ?></a></strong>
-                                        <div style="font-size: 11px; color: #64748b; margin-top: 5px;">
-                                            Type: <span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #475569;"><?php echo $type_label; ?></span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="wasgo-review-content-container">
-                                    <div class="wasgo-review-static-content" style="max-height: 120px; overflow-y: auto; font-size: 13px; line-height: 1.5; color: #334155; border: 1px solid #f1f5f9; padding: 12px; border-radius: 8px; background: #fff; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
-                                        <?php echo nl2br( esc_html( $data['content'] ) ); ?>
-                                    </div>
-                                    <textarea class="wasgo-review-edit-content" style="display:none; width: 100%; height: 120px; font-size: 13px; line-height: 1.5; padding: 10px; border-radius: 8px; border: 1px solid #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1);"><?php echo esc_textarea( $data['content'] ); ?></textarea>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="wasgo-review-issues-container">
-                                    <ul style="margin:0; padding:0; list-style:none; font-size: 12px; color: #ef4444;">
-                                        <?php if ( ! empty( $data['issues'] ) ) : foreach ( $data['issues'] as $issue ) : ?>
-                                            <li style="margin-bottom: 6px; display: flex; gap: 6px; align-items: flex-start;">
-                                                <span class="dashicons dashicons-warning" style="font-size: 14px; width:14px; height:14px; margin-top: 2px;"></span>
-                                                <span><?php echo esc_html( $issue ); ?></span>
-                                            </li>
-                                        <?php endforeach; else: ?>
-                                            <li style="display: flex; gap: 6px; align-items: flex-start;">
-                                                <span class="dashicons dashicons-warning" style="font-size: 14px; width:14px; height:14px; margin-top: 2px;"></span>
-                                                <span>Low confidence score</span>
-                                            </li>
+                    // Products Loop
+                    if ( $query->have_posts() ) : 
+                        $has_items = true;
+                        while ( $query->have_posts() ) : $query->the_post(); 
+                            $pid = get_the_ID();
+                            $review_data = get_post_meta( $pid, '_wasgo_content_review', true );
+                            if ( ! is_array( $review_data ) ) continue;
+
+                            foreach ( $review_data as $type => $data ) :
+                                $type_label = str_replace( ['short', 'long', 'title', 'desc'], ['Short Desc', 'Long Desc', 'Meta Title', 'Meta Desc'], $type );
+                                $score = isset( $data['score'] ) ? floatval( $data['score'] ) : 0;
+                                $score_pct = round( $score * 100 );
+                                
+                                // Determine score color
+                                $score_color = '#ef4444'; // Red
+                                if ( $score >= 0.8 ) $score_color = '#22c55e'; // Green
+                                elseif ( $score >= 0.5 ) $score_color = '#f59e0b'; // Amber
+                            ?>
+                            <tr id="review-row-<?php echo $pid; ?>-<?php echo $type; ?>">
+                                <td style="padding-left: 20px;">
+                                    <div style="display: flex; gap: 12px; align-items: center;">
+                                        <?php if ( has_post_thumbnail( $pid ) ) : ?>
+                                            <div style="flex-shrink: 0; width: 50px; height: 50px; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
+                                                <?php echo get_the_post_thumbnail( $pid, [50, 50], ['style' => 'width:100%; height:auto; display:block;'] ); ?>
+                                            </div>
                                         <?php endif; ?>
-                                    </ul>
-                                </div>
-                            </td>
-                            <td style="text-align: center; vertical-align: middle;">
-                                <div class="wasgo-review-score-badge" style="display:inline-block; padding: 6px 12px; border-radius: 20px; background: <?php echo $score_color; ?>10; color: <?php echo $score_color; ?>; font-weight: bold; border: 1px solid <?php echo $score_color; ?>30; font-size: 12px;">
-                                    <?php echo $score_pct; ?>%
-                                </div>
-                            </td>
-                            <td style="text-align: right; padding-right: 20px; padding-left: 20px; vertical-align: middle;">
-                                <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
-                                    <div style="display: flex; gap: 8px;">
-                                        <button type="button" class="wasgo-studio-btn btn-edit wasgo-review-edit-btn" 
-                                                data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>" title="Edit Content">
-                                            <span class="dashicons dashicons-edit"></span> Edit
-                                        </button>
-                                        <button type="button" class="wasgo-studio-btn btn-save wasgo-review-save-btn" 
-                                                data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>" style="display:none;">
-                                            <span class="dashicons dashicons-saved"></span> Save
-                                        </button>
-                                        <button type="button" class="wasgo-studio-btn btn-regenerate wasgo-review-regenerate-btn" 
-                                                data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>">
-                                            <span class="dashicons dashicons-update"></span> Regenerate
-                                        </button>
+                                        <div>
+                                            <strong><a href="<?php echo get_edit_post_link( $pid ); ?>" target="_blank" style="text-decoration: none; color: #1e293b;"><?php the_title(); ?></a></strong>
+                                            <div style="font-size: 11px; color: #64748b; margin-top: 5px;">
+                                                Type: <span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #475569;"><?php echo $type_label; ?></span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div style="display: flex; gap: 8px;">
-                                        <button type="button" class="wasgo-studio-btn btn-approve wasgo-review-action" 
-                                                data-action="approve" data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>">Approve</button>
-                                        <button type="button" class="wasgo-studio-btn btn-discard wasgo-review-action" 
-                                                data-action="discard" data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>">Discard</button>
+                                </td>
+                                <td>
+                                    <div class="wasgo-review-content-container">
+                                        <div class="wasgo-review-static-content" style="max-height: 120px; overflow-y: auto; font-size: 13px; line-height: 1.5; color: #334155; border: 1px solid #f1f5f9; padding: 12px; border-radius: 8px; background: #fff; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
+                                            <?php echo nl2br( esc_html( $data['content'] ) ); ?>
+                                        </div>
+                                        <textarea class="wasgo-review-edit-content" style="display:none; width: 100%; height: 120px; font-size: 13px; line-height: 1.5; padding: 10px; border-radius: 8px; border: 1px solid #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1);"><?php echo esc_textarea( $data['content'] ); ?></textarea>
                                     </div>
-                                </div>
-                            </td>
-                        </tr>
+                                </td>
+                                <td>
+                                    <div class="wasgo-review-issues-container">
+                                        <ul style="margin:0; padding:0; list-style:none; font-size: 12px; color: #ef4444;">
+                                            <?php if ( ! empty( $data['issues'] ) ) : foreach ( $data['issues'] as $issue ) : ?>
+                                                <li style="margin-bottom: 6px; display: flex; gap: 6px; align-items: flex-start;">
+                                                    <span class="dashicons dashicons-warning" style="font-size: 14px; width:14px; height:14px; margin-top: 2px;"></span>
+                                                    <span><?php echo esc_html( $issue ); ?></span>
+                                                </li>
+                                            <?php endforeach; else: ?>
+                                                <li style="display: flex; gap: 6px; align-items: flex-start;">
+                                                    <span class="dashicons dashicons-warning" style="font-size: 14px; width:14px; height:14px; margin-top: 2px;"></span>
+                                                    <span>Low confidence score</span>
+                                                </li>
+                                            <?php endif; ?>
+                                        </ul>
+                                    </div>
+                                </td>
+                                <td style="text-align: center; vertical-align: middle;">
+                                    <div class="wasgo-review-score-badge" style="display:inline-block; padding: 6px 12px; border-radius: 20px; background: <?php echo $score_color; ?>10; color: <?php echo $score_color; ?>; font-weight: bold; border: 1px solid <?php echo $score_color; ?>30; font-size: 12px;">
+                                        <?php echo $score_pct; ?>%
+                                    </div>
+                                </td>
+                                <td style="text-align: right; padding-right: 20px; padding-left: 20px; vertical-align: middle;">
+                                    <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
+                                        <div style="display: flex; gap: 8px;">
+                                            <button type="button" class="wasgo-studio-btn btn-edit wasgo-review-edit-btn" 
+                                                    data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>" data-item-type="product" title="Edit Content">
+                                                <span class="dashicons dashicons-edit"></span> Edit
+                                            </button>
+                                            <button type="button" class="wasgo-studio-btn btn-save wasgo-review-save-btn" 
+                                                    data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>" data-item-type="product" style="display:none;">
+                                                <span class="dashicons dashicons-saved"></span> Save
+                                            </button>
+                                            <button type="button" class="wasgo-studio-btn btn-regenerate wasgo-review-regenerate-btn" 
+                                                    data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>" data-item-type="product">
+                                                <span class="dashicons dashicons-update"></span> Regenerate
+                                            </button>
+                                        </div>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button type="button" class="wasgo-studio-btn btn-approve wasgo-review-action" 
+                                                    data-action="approve" data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>" data-item-type="product">Approve</button>
+                                            <button type="button" class="wasgo-studio-btn btn-discard wasgo-review-action" 
+                                                    data-action="discard" data-pid="<?php echo $pid; ?>" data-type="<?php echo $type; ?>" data-item-type="product">Discard</button>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php endwhile; wp_reset_postdata(); ?>
+                    <?php endif; ?>
+
+                    <?php 
+                    // Categories Loop
+                    if ( ! empty( $review_categories ) && ! is_wp_error( $review_categories ) ) : 
+                        $has_items = true;
+                        foreach ( $review_categories as $cid ) :
+                            $review_data = get_term_meta( $cid, '_wasgo_content_review', true );
+                            if ( ! is_array( $review_data ) ) continue;
+
+                            $term = get_term( $cid, 'product_cat' );
+                            if ( ! $term || is_wp_error( $term ) ) continue;
+
+                            foreach ( $review_data as $type => $data ) :
+                                $type_label = str_replace( ['cat_title', 'cat_desc'], ['Cat Title', 'Cat Desc'], $type );
+                                $score = isset( $data['score'] ) ? floatval( $data['score'] ) : 0;
+                                $score_pct = round( $score * 100 );
+                                
+                                // Determine score color
+                                $score_color = '#ef4444'; // Red
+                                if ( $score >= 0.8 ) $score_color = '#22c55e'; // Green
+                                elseif ( $score >= 0.5 ) $score_color = '#f59e0b'; // Amber
+
+                                // Category Image
+                                $thumbnail_id = get_term_meta( $cid, 'thumbnail_id', true );
+                                $image_html = '';
+                                if ( $thumbnail_id ) {
+                                    $image_html = wp_get_attachment_image( $thumbnail_id, [50, 50], false, ['style' => 'width:100%; height:auto; display:block;'] );
+                                }
+                            ?>
+                            <tr id="review-row-<?php echo $cid; ?>-<?php echo $type; ?>-category">
+                                <td style="padding-left: 20px;">
+                                    <div style="display: flex; gap: 12px; align-items: center;">
+                                        <?php if ( $image_html ) : ?>
+                                            <div style="flex-shrink: 0; width: 50px; height: 50px; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
+                                                <?php echo $image_html; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div>
+                                            <strong><a href="<?php echo get_edit_term_link( $cid, 'product_cat' ); ?>" target="_blank" style="text-decoration: none; color: #1e293b;"><?php echo esc_html( $term->name ); ?></a></strong>
+                                            <div style="font-size: 11px; color: #64748b; margin-top: 5px;">
+                                                Type: <span style="background: #e0f2fe; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #0369a1;"><?php echo $type_label; ?></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="wasgo-review-content-container">
+                                        <div class="wasgo-review-static-content" style="max-height: 120px; overflow-y: auto; font-size: 13px; line-height: 1.5; color: #334155; border: 1px solid #f1f5f9; padding: 12px; border-radius: 8px; background: #fff; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
+                                            <?php echo nl2br( esc_html( $data['content'] ) ); ?>
+                                        </div>
+                                        <textarea class="wasgo-review-edit-content" style="display:none; width: 100%; height: 120px; font-size: 13px; line-height: 1.5; padding: 10px; border-radius: 8px; border: 1px solid #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1);"><?php echo esc_textarea( $data['content'] ); ?></textarea>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="wasgo-review-issues-container">
+                                        <ul style="margin:0; padding:0; list-style:none; font-size: 12px; color: #ef4444;">
+                                            <?php if ( ! empty( $data['issues'] ) ) : foreach ( $data['issues'] as $issue ) : ?>
+                                                <li style="margin-bottom: 6px; display: flex; gap: 6px; align-items: flex-start;">
+                                                    <span class="dashicons dashicons-warning" style="font-size: 14px; width:14px; height:14px; margin-top: 2px;"></span>
+                                                    <span><?php echo esc_html( $issue ); ?></span>
+                                                </li>
+                                            <?php endforeach; else: ?>
+                                                <li style="display: flex; gap: 6px; align-items: flex-start;">
+                                                    <span class="dashicons dashicons-warning" style="font-size: 14px; width:14px; height:14px; margin-top: 2px;"></span>
+                                                    <span>Low confidence score</span>
+                                                </li>
+                                            <?php endif; ?>
+                                        </ul>
+                                    </div>
+                                </td>
+                                <td style="text-align: center; vertical-align: middle;">
+                                    <div class="wasgo-review-score-badge" style="display:inline-block; padding: 6px 12px; border-radius: 20px; background: <?php echo $score_color; ?>10; color: <?php echo $score_color; ?>; font-weight: bold; border: 1px solid <?php echo $score_color; ?>30; font-size: 12px;">
+                                        <?php echo $score_pct; ?>%
+                                    </div>
+                                </td>
+                                <td style="text-align: right; padding-right: 20px; padding-left: 20px; vertical-align: middle;">
+                                    <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
+                                        <div style="display: flex; gap: 8px;">
+                                            <button type="button" class="wasgo-studio-btn btn-edit wasgo-review-edit-btn" 
+                                                    data-pid="<?php echo $cid; ?>" data-type="<?php echo $type; ?>" data-item-type="category" title="Edit Content">
+                                                <span class="dashicons dashicons-edit"></span> Edit
+                                            </button>
+                                            <button type="button" class="wasgo-studio-btn btn-save wasgo-review-save-btn" 
+                                                    data-pid="<?php echo $cid; ?>" data-type="<?php echo $type; ?>" data-item-type="category" style="display:none;">
+                                                <span class="dashicons dashicons-saved"></span> Save
+                                            </button>
+                                            <button type="button" class="wasgo-studio-btn btn-regenerate wasgo-review-regenerate-btn" 
+                                                    data-pid="<?php echo $cid; ?>" data-type="<?php echo $type; ?>" data-item-type="category">
+                                                <span class="dashicons dashicons-update"></span> Regenerate
+                                            </button>
+                                        </div>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button type="button" class="wasgo-studio-btn btn-approve wasgo-review-action" 
+                                                    data-action="approve" data-pid="<?php echo $cid; ?>" data-type="<?php echo $type; ?>" data-item-type="category">Approve</button>
+                                            <button type="button" class="wasgo-studio-btn btn-discard wasgo-review-action" 
+                                                    data-action="discard" data-pid="<?php echo $cid; ?>" data-type="<?php echo $type; ?>" data-item-type="category">Discard</button>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
                         <?php endforeach; ?>
-                    <?php endwhile; wp_reset_postdata(); else : ?>
+                    <?php endif; ?>
+
+                    <?php if ( ! $has_items ) : ?>
                         <tr>
-                            <td colspan="4" style="padding: 40px; text-align: center; color: #64748b;">
+                            <td colspan="5" style="padding: 40px; text-align: center; color: #64748b;">
                                 <span class="dashicons dashicons-shield-check" style="font-size: 40px; width: 40px; height: 40px; display: block; margin: 0 auto 15px;"></span>
-                                No products currently require manual review.
+                                No items currently require manual review.
                             </td>
                         </tr>
                     <?php endif; ?>

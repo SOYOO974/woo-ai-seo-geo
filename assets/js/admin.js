@@ -598,7 +598,13 @@ jQuery(document).ready(function($) {
         let action = $btn.data('action');
         let pid = $btn.data('pid');
         let type = $btn.data('type');
-        let $row = $('#review-row-' + pid + '-' + type);
+        let itemType = $btn.data('item-type') || 'product';
+        
+        let rowId = '#review-row-' + pid + '-' + type;
+        if (itemType === 'category') {
+            rowId += '-category';
+        }
+        let $row = $(rowId);
 
         $btn.attr('disabled', 'disabled').text('...');
 
@@ -610,7 +616,8 @@ jQuery(document).ready(function($) {
                 nonce: wasgo_ajax.nonce,
                 review_action: action,
                 pid: pid,
-                type: type
+                type: type,
+                item_type: itemType
             },
             success: function(response) {
                 if (response.success) {
@@ -641,18 +648,29 @@ jQuery(document).ready(function($) {
         let sample = wasgo_ajax.sample;
 
         let finalPrompt = '';
+        let isCat = (type === 'cat_title' || type === 'cat_desc');
         
         // Visual Image Context
         let imageHtml = '';
-        if (sample.image) {
-            imageHtml = '<div class="wasgo-terminal-image"><img src="' + sample.image + '" /><span>📎 AI Vision Context Attached</span></div>';
-        } else if (sample.req_img) {
-            imageHtml = '<div class="wasgo-terminal-image warning"><span class="dashicons dashicons-warning"></span><span>⚠️ No Image Found - Vision Analysis will be skipped</span></div>';
+        if (isCat) {
+            if (sample.image) {
+                imageHtml = '<div class="wasgo-terminal-image"><img src="' + sample.image + '" /><span>📎 Category AI Vision Context Attached</span></div>';
+            } else {
+                imageHtml = '<div class="wasgo-terminal-image warning"><span class="dashicons dashicons-warning"></span><span>⚠️ No Category Image Found - Vision Analysis will be skipped</span></div>';
+            }
+        } else {
+            if (sample.image) {
+                imageHtml = '<div class="wasgo-terminal-image"><img src="' + sample.image + '" /><span>📎 AI Vision Context Attached</span></div>';
+            } else if (sample.req_img) {
+                imageHtml = '<div class="wasgo-terminal-image warning"><span class="dashicons dashicons-warning"></span><span>⚠️ No Image Found - Vision Analysis will be skipped</span></div>';
+            }
         }
 
         // 1. Vision Status Logic
         let visionStatus = '';
-        if (sample.req_img) {
+        if (isCat) {
+            visionStatus = sample.image ? 'ENABLED (Category Image)' : 'Enabled (No Category Image found)';
+        } else if (sample.req_img) {
             if (sample.image) {
                 visionStatus = 'ENABLED';
             } else {
@@ -666,15 +684,27 @@ jQuery(document).ready(function($) {
         finalPrompt += 'Vision Analysis: ' + visionStatus + '\n';
         finalPrompt += 'Target Language: ' + sample.lang + '\n\n';
 
-        finalPrompt += '### PRODUCT IDENTITY:\n';
-        finalPrompt += 'Name: ' + sample.title + '\n';
-        if (sample.cats) {
-            finalPrompt += 'Categories: ' + sample.cats + '\n';
+        if (isCat) {
+            if (sample.is_empty) {
+                finalPrompt += '### CATEGORY IDENTITY:\n';
+                finalPrompt += 'No WooCommerce product categories found in this store.\n\n';
+            } else {
+                let catName = sample.title || '[SAMPLE CATEGORY]';
+                finalPrompt += '### CATEGORY IDENTITY:\n';
+                finalPrompt += 'Name: ' + catName + '\n';
+                finalPrompt += '\n';
+            }
+        } else {
+            finalPrompt += '### PRODUCT IDENTITY:\n';
+            finalPrompt += 'Name: ' + sample.title + '\n';
+            if (sample.cats) {
+                finalPrompt += 'Categories: ' + sample.cats + '\n';
+            }
+            if (sample.attrs) {
+                finalPrompt += 'Attributes:\n' + sample.attrs + '\n';
+            }
+            finalPrompt += '\n';
         }
-        if (sample.attrs) {
-            finalPrompt += 'Attributes:\n' + sample.attrs + '\n';
-        }
-        finalPrompt += '\n';
 
         // Add selected specs simulation
         let selectedSpecs = [];
@@ -683,10 +713,34 @@ jQuery(document).ready(function($) {
         });
 
         if (selectedSpecs.length > 0) {
-            finalPrompt += '### USEFUL SPECS:\n';
-            selectedSpecs.forEach(function(spec) {
-                finalPrompt += spec + ': [SAMPLE VALUE]\n';
-            });
+            if (isCat) {
+                finalPrompt += '### USEFUL INFORMATION:\n';
+                selectedSpecs.forEach(function(spec) {
+                    let specKey = spec.toLowerCase().replace(/ /g, '_');
+                    let label = spec;
+                    let specVal = '[SAMPLE VALUE]';
+
+                    if (specKey === 'category_description') {
+                        label = 'Category Description';
+                        specVal = sample.desc || '[CATEGORY ORGANIC DESCRIPTION]';
+                    } else if (specKey === 'parent_category') {
+                        label = 'Parent Category';
+                        specVal = sample.parent || 'None';
+                    } else if (specKey === 'product_count') {
+                        label = 'Total Product Count';
+                        specVal = sample.count !== undefined ? sample.count : '0';
+                    } else if (specKey === 'latest_products') {
+                        label = 'Include Latest 3 Products';
+                        specVal = sample.sample_products || '[SAMPLE PRODUCT 1, SAMPLE PRODUCT 2, SAMPLE PRODUCT 3]';
+                    }
+                    finalPrompt += label + ': ' + specVal + '\n';
+                });
+            } else {
+                finalPrompt += '### USEFUL SPECS:\n';
+                selectedSpecs.forEach(function(spec) {
+                    finalPrompt += spec + ': [SAMPLE VALUE]\n';
+                });
+            }
             finalPrompt += '\n';
         }
 
@@ -694,7 +748,9 @@ jQuery(document).ready(function($) {
             'short': 'SHORT DESCRIPTION',
             'long': 'LONG DESCRIPTION',
             'title': 'META TITLE',
-            'desc': 'META DESCRIPTION'
+            'desc': 'META DESCRIPTION',
+            'cat_title': 'PRODUCT CATEGORY META TITLE',
+            'cat_desc': 'PRODUCT CATEGORY META DESCRIPTION'
         };
 
         finalPrompt += '### INSTRUCTIONS FOR ' + (typeLabels[type] || type.toUpperCase()) + ':\n';
@@ -705,7 +761,7 @@ jQuery(document).ready(function($) {
         
         // Highlight system headers for better readability
         escapedPrompt = escapedPrompt.replace(/(### [A-Z ]+:)/g, '<span class="terminal-header">$1</span>');
-        escapedPrompt = escapedPrompt.replace(/(Name:|Categories:|Attributes:|Target Language:|Vision Analysis:)/g, '<span class="terminal-key">$1</span>');
+        escapedPrompt = escapedPrompt.replace(/(Name:|Categories:|Attributes:|Target Language:|Vision Analysis:|Organic Description:|Parent Category:|Total Product Count:|Include Latest 3 Products:|Category Description:)/g, '<span class="terminal-key">$1</span>');
 
         $preview.html(imageHtml + '<pre>' + escapedPrompt + '</pre>');
     }
@@ -722,6 +778,8 @@ jQuery(document).ready(function($) {
         let $input = $(this);
         let term = $input.val();
         let $results = $('#wasgo-preview-search-results');
+        let type = $('#wasgo-prompt-input').data('type');
+        let searchType = (type === 'cat_title' || type === 'cat_desc') ? 'category' : 'product';
 
         if (term.length < 3) {
             $results.hide();
@@ -735,7 +793,8 @@ jQuery(document).ready(function($) {
                 data: {
                     action: 'wasgo_content_search_products',
                     nonce: wasgo_ajax.nonce,
-                    term: term
+                    term: term,
+                    search_type: searchType
                 },
                 success: function(response) {
                     if (response.success && response.data.length > 0) {
@@ -756,6 +815,8 @@ jQuery(document).ready(function($) {
         let pid = $(this).data('id');
         let $results = $('#wasgo-preview-search-results');
         let $input = $('#wasgo-preview-search');
+        let type = $('#wasgo-prompt-input').data('type');
+        let searchType = (type === 'cat_title' || type === 'cat_desc') ? 'category' : 'product';
 
         $results.hide();
         $input.val($(this).text()).attr('disabled', 'disabled');
@@ -766,7 +827,8 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'wasgo_content_get_preview_data',
                 nonce: wasgo_ajax.nonce,
-                pid: pid
+                pid: pid,
+                search_type: searchType
             },
             success: function(response) {
                 if (response.success) {
@@ -823,6 +885,7 @@ jQuery(document).ready(function($) {
         let $btn = $(this);
         let pid = $btn.data('pid');
         let type = $btn.data('type');
+        let itemType = $btn.data('item-type') || 'product';
         let $row = $btn.closest('tr');
         let content = $row.find('.wasgo-review-edit-content').val();
 
@@ -836,7 +899,8 @@ jQuery(document).ready(function($) {
                 nonce: wasgo_ajax.nonce,
                 pid: pid,
                 type: type,
-                content: content
+                content: content,
+                item_type: itemType
             },
             success: function(response) {
                 if (response.success) {
@@ -857,6 +921,7 @@ jQuery(document).ready(function($) {
         let $btn = $(this);
         let pid = $btn.data('pid');
         let type = $btn.data('type');
+        let itemType = $btn.data('item-type') || 'product';
         let $row = $btn.closest('tr');
 
         if (!confirm('Are you sure you want to regenerate this content? The current version will be replaced.')) return;
@@ -870,7 +935,8 @@ jQuery(document).ready(function($) {
                 action: 'wasgo_content_regenerate_review',
                 nonce: wasgo_ajax.nonce,
                 pid: pid,
-                type: type
+                type: type,
+                item_type: itemType
             },
             success: function(response) {
                 if (response.success) {

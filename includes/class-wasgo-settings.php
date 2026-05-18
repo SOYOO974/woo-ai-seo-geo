@@ -44,11 +44,19 @@ class WASGO_Settings {
         register_setting( 'wasgo_content_desc_group', 'wasgo_content_desc_prompt', [ 'sanitize_callback' => 'sanitize_textarea_field' ] );
         register_setting( 'wasgo_content_desc_group', 'wasgo_content_desc_specs' );
 
+        register_setting( 'wasgo_content_cat_title_group', 'wasgo_content_cat_title_prompt', [ 'sanitize_callback' => 'sanitize_textarea_field' ] );
+        register_setting( 'wasgo_content_cat_title_group', 'wasgo_content_cat_title_specs' );
+
+        register_setting( 'wasgo_content_cat_desc_group', 'wasgo_content_cat_desc_prompt', [ 'sanitize_callback' => 'sanitize_textarea_field' ] );
+        register_setting( 'wasgo_content_cat_desc_group', 'wasgo_content_cat_desc_specs' );
+
         // Content Local Settings
         register_setting( 'wasgo_content_settings_group', 'wasgo_content_disable_short', [ 'sanitize_callback' => 'absint' ] );
         register_setting( 'wasgo_content_settings_group', 'wasgo_content_disable_long', [ 'sanitize_callback' => 'absint' ] );
         register_setting( 'wasgo_content_settings_group', 'wasgo_content_disable_title', [ 'sanitize_callback' => 'absint' ] );
         register_setting( 'wasgo_content_settings_group', 'wasgo_content_disable_desc', [ 'sanitize_callback' => 'absint' ] );
+        register_setting( 'wasgo_content_settings_group', 'wasgo_content_disable_cat_title', [ 'sanitize_callback' => 'absint' ] );
+        register_setting( 'wasgo_content_settings_group', 'wasgo_content_disable_cat_desc', [ 'sanitize_callback' => 'absint' ] );
         register_setting( 'wasgo_content_settings_group', 'wasgo_content_out_of_stock', [ 'sanitize_callback' => 'absint' ] );
         register_setting( 'wasgo_content_settings_group', 'wasgo_content_auto_process', [ 'sanitize_callback' => 'absint' ] );
         register_setting( 'wasgo_content_settings_group', 'wasgo_content_image_required', [ 'sanitize_callback' => 'absint' ] );

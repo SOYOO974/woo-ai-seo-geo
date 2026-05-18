@@ -27,10 +27,19 @@ class WASGO_Logs {
     }
 
     /**
-     * Logs an error for a specific product
+     * Logs an error for a specific item (product or category)
      */
     public static function log_error( $product_id, $message, $type = 'image' ) {
         $product_title = get_the_title( $product_id );
+        if ( empty( $product_title ) ) {
+            $term = get_term( $product_id, 'product_cat' );
+            if ( $term && ! is_wp_error( $term ) ) {
+                $product_title = $term->name;
+            }
+        }
+        if ( empty( $product_title ) ) {
+            $product_title = 'Item #' . $product_id;
+        }
         
         $post_id = wp_insert_post( [
             'post_title'  => $product_title,
@@ -47,10 +56,19 @@ class WASGO_Logs {
     }
 
     /**
-     * Logs a success for a specific product
+     * Logs a success for a specific item (product or category)
      */
     public static function log_success( $product_id, $message, $type = 'content', $data = [] ) {
         $product_title = get_the_title( $product_id );
+        if ( empty( $product_title ) ) {
+            $term = get_term( $product_id, 'product_cat' );
+            if ( $term && ! is_wp_error( $term ) ) {
+                $product_title = $term->name;
+            }
+        }
+        if ( empty( $product_title ) ) {
+            $product_title = 'Item #' . $product_id;
+        }
         
         $post_id = wp_insert_post( [
             'post_title'  => $product_title,

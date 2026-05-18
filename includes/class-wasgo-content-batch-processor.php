@@ -36,7 +36,7 @@ class WASGO_Content_Batch_Processor {
 
         if ( ! $resume ) {
             update_option( 'wasgo_content_processed', 0 );
-            $queue = self::get_eligible_product_ids( $types, $mode );
+            $queue = self::get_eligible_queue( $types, $mode );
             update_option( 'wasgo_content_queue', $queue );
             $total = count( $queue );
             update_option( 'wasgo_content_total', $total );
@@ -130,11 +130,101 @@ class WASGO_Content_Batch_Processor {
     }
 
     /**
+     * Get list of category IDs needing processing
+     */
+    public static function get_eligible_category_ids( $types, $mode ) {
+        $categories = get_terms( [
+            'taxonomy'   => 'product_cat',
+            'hide_empty' => false,
+            'fields'     => 'ids'
+        ] );
+
+        if ( empty( $categories ) || is_wp_error( $categories ) ) {
+            return [];
+        }
+
+        $filtered = [];
+        foreach ( $categories as $term_id ) {
+            // Check if AI is disabled for this category
+            if ( get_term_meta( $term_id, '_wasgo_disable_cat_ai_gen', true ) ) {
+                continue;
+            }
+
+            if ( $mode === 'smart' ) {
+                if ( get_term_meta( $term_id, '_wasgo_needs_review', true ) ) {
+                    continue;
+                }
+
+                $needs_work = false;
+                foreach ( $types as $type ) {
+                    $val = '';
+                    if ( $type === 'cat_title' ) {
+                        $val = get_term_meta( $term_id, 'wpseo_title', true ) ?: 
+                               get_term_meta( $term_id, 'rank_math_title', true ) ?: 
+                               get_term_meta( $term_id, '_genesis_title', true ) ?:
+                               get_term_meta( $term_id, '_wasgo_ai_title', true );
+                    } elseif ( $type === 'cat_desc' ) {
+                        $val = get_term_meta( $term_id, 'wpseo_desc', true ) ?: 
+                               get_term_meta( $term_id, 'rank_math_description', true ) ?: 
+                               get_term_meta( $term_id, '_genesis_description', true ) ?:
+                               get_term_meta( $term_id, '_wasgo_ai_description', true );
+                    }
+
+                    if ( empty( $val ) ) {
+                        $needs_work = true;
+                        break;
+                    }
+                }
+                if ( $needs_work ) {
+                    $filtered[] = $term_id;
+                }
+            } else {
+                $filtered[] = $term_id;
+            }
+        }
+
+        return $filtered;
+    }
+
+    /**
+     * Get unified eligible queue
+     */
+    public static function get_eligible_queue( $types, $mode ) {
+        $queue = [];
+
+        // Products
+        $product_types = array_intersect( $types, ['short', 'long', 'title', 'desc'] );
+        if ( ! empty( $product_types ) ) {
+            $product_ids = self::get_eligible_product_ids( $product_types, $mode );
+            foreach ( $product_ids as $pid ) {
+                $queue[] = [
+                    'type' => 'product',
+                    'id'   => $pid
+                ];
+            }
+        }
+
+        // Categories
+        $category_types = array_intersect( $types, ['cat_title', 'cat_desc'] );
+        if ( ! empty( $category_types ) ) {
+            $category_ids = self::get_eligible_category_ids( $category_types, $mode );
+            foreach ( $category_ids as $cid ) {
+                $queue[] = [
+                    'type' => 'category',
+                    'id'   => $cid
+                ];
+            }
+        }
+
+        return $queue;
+    }
+
+    /**
      * Legacy helper for UI
      */
     public static function get_total_remaining( $types, $mode ) {
-        $ids = self::get_eligible_product_ids( $types, $mode );
-        return count( $ids );
+        $queue = self::get_eligible_queue( $types, $mode );
+        return count( $queue );
     }
 
     public static function stop_bulk() {
@@ -157,14 +247,25 @@ class WASGO_Content_Batch_Processor {
             return;
         }
 
-        // Get next product from queue
-        $target_product = array_shift( $queue );
+        // Get next item from queue
+        $target = array_shift( $queue );
         update_option( 'wasgo_content_queue', $queue );
 
-        // Process the product (Ignore global disabled toggles for bulk)
-        update_post_meta( $target_product, '_wasgo_processing_content', time() );
-        WASGO_Content_Orchestrator::process_product( $target_product, $types, true );
-        delete_post_meta( $target_product, '_wasgo_processing_content' );
+        if ( isset( $target['type'] ) && $target['type'] === 'product' ) {
+            $product_types = array_intersect( $types, ['short', 'long', 'title', 'desc'] );
+            if ( ! empty( $product_types ) ) {
+                update_post_meta( $target['id'], '_wasgo_processing_content', time() );
+                WASGO_Content_Orchestrator::process_product( $target['id'], $product_types, true );
+                delete_post_meta( $target['id'], '_wasgo_processing_content' );
+            }
+        } elseif ( isset( $target['type'] ) && $target['type'] === 'category' ) {
+            $category_types = array_intersect( $types, ['cat_title', 'cat_desc'] );
+            if ( ! empty( $category_types ) ) {
+                update_term_meta( $target['id'], '_wasgo_processing_content', time() );
+                WASGO_Content_Orchestrator::process_category( $target['id'], $category_types, true );
+                delete_term_meta( $target['id'], '_wasgo_processing_content' );
+            }
+        }
 
         $processed_count = get_option( 'wasgo_content_processed', 0 );
         update_option( 'wasgo_content_processed', $processed_count + 1 );

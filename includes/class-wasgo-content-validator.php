@@ -148,4 +148,131 @@ class WASGO_Content_Validator {
 
         return $validation_json;
     }
+
+    /**
+     * Validate generated category content using GPT-4o
+     * 
+     * @param int   $term_id         The category term ID.
+     * @param array $generated_json  The JSON content from GPT-4o.
+     * @param array $context         Additional context (Name, Specs, Prompt, Type).
+     * @return array|WP_Error        The validation result JSON or error.
+     */
+    public static function validate_category_content( $term_id, $generated_json, $context ) {
+        $api_key = WASGO_Settings::get_openai_api_key();
+        if ( empty( $api_key ) ) {
+            return new WP_Error( 'missing_openai_key', 'OpenAI API Key is missing for validation.' );
+        }
+
+        $term = get_term( $term_id, 'product_cat' );
+        if ( ! $term || is_wp_error( $term ) ) {
+            return new WP_Error( 'invalid_category', 'Category not found.' );
+        }
+
+        $image_data_url = '';
+        $thumbnail_id = get_term_meta( $term_id, 'thumbnail_id', true );
+        if ( $thumbnail_id ) {
+            $image_path = get_attached_file( $thumbnail_id );
+            if ( $image_path && file_exists( $image_path ) ) {
+                $raw_data = @file_get_contents( $image_path );
+                $mime = get_post_mime_type( $thumbnail_id ) ?: 'image/jpeg';
+                if ( $raw_data ) {
+                    $image_data_url = 'data:' . $mime . ';base64,' . base64_encode( $raw_data );
+                }
+            }
+            if ( empty( $image_data_url ) ) {
+                $image_data_url = wp_get_attachment_url( $thumbnail_id );
+            }
+        }
+        
+        $target_lang = WASGO_Settings::get_content_language();
+
+        $validation_prompt = "You are a critical content validator. Your job is to verify that the AI-generated WooCommerce category SEO content is 100% accurate and does NOT contain hallucinations.\n\n";
+        $validation_prompt .= "### CATEGORY CONTEXT:\n";
+        $validation_prompt .= "Name: {$term->name}\n";
+        if ( ! empty( $context['specs'] ) ) {
+            $validation_prompt .= "Verified Details:\n";
+            foreach ( $context['specs'] as $label => $val ) {
+                $validation_prompt .= "- $label: $val\n";
+            }
+        }
+        $validation_prompt .= "Target Language: $target_lang\n";
+        
+        $validation_prompt .= "\n### GENERATION CONTEXT:\n";
+        $validation_prompt .= "Content Type: " . $context['type'] . "\n";
+        $validation_prompt .= "Prompt Used: " . $context['prompt'] . "\n";
+        
+        $validation_prompt .= "\n### GENERATED CONTENT TO VALIDATE:\n";
+        $validation_prompt .= wp_json_encode( $generated_json, JSON_PRETTY_PRINT ) . "\n\n";
+        
+        $validation_prompt .= "### YOUR INSTRUCTIONS:\n";
+        $validation_prompt .= "1. **Language Check**: Ensure the content is written in $target_lang. If it is in the wrong language, set status to 'fail' with an appropriate issue message.\n";
+        $validation_prompt .= "2. **Hard Hallucinations**: You MUST flag claims that are explicitly contradicted by category metadata or products not present in the input details.\n";
+        $validation_prompt .= "3. **Visual Audit**: Use the Category Image to confirm the design matches the metadata.\n";
+        $validation_prompt .= "4. Output your decision in a strict JSON format.";
+
+        $json_schema = [
+            'name'   => 'category_validation_result',
+            'strict' => true,
+            'schema' => [
+                'type'       => 'object',
+                'properties' => [
+                    'status'             => [ 'type' => 'string', 'enum' => [ 'pass', 'retry', 'fail' ] ],
+                    'confidence_score'   => [ 'type' => 'number' ],
+                    'issues'             => [ 'type' => 'array', 'items' => [ 'type' => 'string' ] ],
+                    'recommended_action' => [ 'type' => 'string' ]
+                ],
+                'required'             => [ 'status', 'confidence_score', 'issues', 'recommended_action' ],
+                'additionalProperties' => false
+            ]
+        ];
+
+        $messages = [
+            [ 'role' => 'system', 'content' => 'You are a professional fact-checker for e-commerce store category pages.' ],
+            [ 'role' => 'user', 'content' => $validation_prompt ]
+        ];
+
+        if ( ! empty( $image_data_url ) ) {
+            $messages[1]['content'] = [
+                [ 'type' => 'text', 'text' => $validation_prompt ],
+                [ 'type' => 'image_url', 'image_url' => [ 'url' => $image_data_url ] ]
+            ];
+        }
+
+        $response = wp_remote_post( 'https://api.openai.com/v1/chat/completions', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $api_key,
+                'Content-Type'  => 'application/json'
+            ],
+            'body'    => wp_json_encode( [
+                'model'           => 'gpt-4o-2024-08-06',
+                'messages'        => $messages,
+                'response_format' => [
+                    'type'        => 'json_schema',
+                    'json_schema' => $json_schema
+                ],
+                'temperature'     => 0
+            ] ),
+            'timeout' => 60
+        ] );
+
+        if ( is_wp_error( $response ) ) {
+            return $response;
+        }
+
+        $body = wp_remote_retrieve_body( $response );
+        $data = json_decode( $body, true );
+
+        if ( isset( $data['error'] ) ) {
+            return new WP_Error( 'openai_validation_error', $data['error']['message'] );
+        }
+
+        $content = isset( $data['choices'][0]['message']['content'] ) ? $data['choices'][0]['message']['content'] : '';
+        $validation_json = json_decode( $content, true );
+
+        if ( ! $validation_json ) {
+            return new WP_Error( 'invalid_validation_json', 'GPT-4o failed to return valid validation JSON.' );
+        }
+
+        return $validation_json;
+    }
 }
