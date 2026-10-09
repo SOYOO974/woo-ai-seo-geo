@@ -46,6 +46,15 @@ Dès qu'une modification ou amélioration est apportée à cette extension :
      git push origin main
      ```
 
-4. **Posture CTO & Sparring-Partner** :
+4. **Tag Git & Création de la Release GitHub Obligatoire (Auto-Update PUC)** :
+   - Poser systématiquement le tag Git correspondant à la version et le pousser sur `origin` :
+     ```bash
+     git tag X.Y
+     git push origin X.Y
+     ```
+   - Créer impérativement la **Release GitHub** correspondante (via GitHub CLI `gh release create X.Y --title "Version X.Y" --notes "..."` ou interface web).
+   - *Raison technique* : **Plugin Update Checker (PUC v5)** s'appuie sur les Releases GitHub (`enableReleaseAssets`) pour notifier immédiatement WordPress de la mise à jour disponible et afficher le changelog complet sur les sites clients (ex: `comptoirdecambaie.re`).
+
+5. **Posture CTO & Sparring-Partner** :
    - Analyser froidement les propositions, alerter sur les risques de dérive (dette technique, surcharge de la base `wp_posts`, temps d'exécution des crons/APIs, sécurité des clés API).
    - Bannir toute flatterie ou complaisance.

@@ -217,3 +217,27 @@ En posture d'associé technique et sparring-partner exigeant, voici les **5 anom
 4. **Lot 4 — Tests en Conditions Réelles sur `comptoirdecambaie.re`** :
    - Validation en préproduction / staging.
    - Déploiement sans régression.
+
+---
+
+## 🚀 7. Protocole de Release GitHub & Déploiement Auto-Update (PUC v5)
+
+Pour garantir la distribution instantanée et sans friction des mises à jour sur les sites clients (ex: `comptoirdecambaie.re`), le protocole suivant est **obligatoire** à chaque nouvelle version :
+
+1. **Incrémentation de Version** :
+   - Mettre à jour l'en-tête de `woocommerce-ai-seo-geo-optimization.php` (`Version: X.Y`).
+   - Mettre à jour la constante `WASGO_VERSION` (`define( 'WASGO_VERSION', 'X.Y' );`).
+2. **Linting PHP Syntaxique** :
+   - Exécuter `php -l` sur l'ensemble des fichiers PHP.
+3. **Commit Conventionnel & Push `main`** :
+   - Commiter avec message conventionnel explicite (`feat: ... (vX.Y)`).
+   - Pusher sur `origin main`.
+4. **Tag Git & Création Systématique de la Release GitHub** :
+   - Poser le tag Git : `git tag X.Y` et `git push origin X.Y`.
+   - Créer impérativement la **Release GitHub** correspondante via GitHub CLI ou interface web :
+     ```bash
+     gh release create X.Y --title "Version X.Y — Titre explicite" --notes "Description détaillée des nouveautés et correctifs..."
+     ```
+5. **Raison Technique & Mécanisme PUC** :
+   - **Plugin Update Checker (PUC v5.6)** écoute la branche `main` et les releases GitHub (`$myUpdateChecker->getVcsApi()->enableReleaseAssets()`).
+   - La Release GitHub sert de balise officielle pour WordPress : elle déclenche la détection de mise à jour, affiche le changelog complet dans l'admin WordPress et permet la mise à niveau en 1 clic sans intervention manuelle.
