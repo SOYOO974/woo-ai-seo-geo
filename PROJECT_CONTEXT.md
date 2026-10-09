@@ -151,29 +151,49 @@ Enregistre les réussites (`_wasgo_log_nature = 'success'`) et les erreurs (`_wa
 
 En posture d'associé technique et sparring-partner exigeant, voici les **5 anomalies et axes critiques** relevés dans le code :
 
-### 1. 🚨 Fuite de Sécurité : Clé GitHub PAT codée en dur
+### 1. 🔒 Sécurité : Clé GitHub PAT codée en dur (RÉSOLU)
 - **Fichier** : `woocommerce-ai-seo-geo-optimization.php` (Ligne 30)
-- **Code incriminé** : `$myUpdateChecker->setAuthentication('WASGO_GITHUB_TOKEN_REDACTED');`
-- **Risque** : Un Personal Access Token GitHub (`ghp_...`) est versionné en clair dans le dépôt public/privé. N'importe qui consultant le fichier a accès au compte ou à l'organisation GitHub.
-- **Action requise** : Révoquer immédiatement ce jeton sur GitHub, et pour les dépôts publics, supprimer cette ligne ou basculer sur une constante optionnelle définie dans `wp-config.php`.
+- **Action réalisée** : Le token en clair a été supprimé du code source. L'authentification PUC s'effectue désormais de manière sécurisée via la constante optionnelle `WASGO_GITHUB_ACCESS_TOKEN` (à définir dans `wp-config.php` si le repo nécessite une authentification privée).
+- **Rappel sécurité** : Le token GitHub précédemment exposé doit impérativement être révoqué sur l'interface GitHub de l'organisation SOYOO974.
 
 ### 2. ⚡ Dénomination du modèle Gemini Image
 - **Fichier** : `class-wasgo-image-generator.php` (Lignes 94 et 379)
 - **Code** : `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent`
-- **Risque** : `gemini-3.1-flash-image-preview` n'est pas un endpoint public standard de l'API Google Gemini (qui expose `imagen-3.0-generate-002`, `gemini-2.0-flash-exp` ou `gemini-1.5-flash`). Il convient de clarifier si cet endpoint est fonctionnel ou s'il s'agit d'un placeholder à aligner sur les modèles de production stables.
+- **Risque** : `gemini-3.1-flash-image-preview` n'est pas un endpoint public standard de l'API Google Gemini. Il convient d'aligner l'appel direct sur les endpoints officiels ou de passer par la nouvelle passerelle multi-providers (Magnific / Higgsfield).
 
-### 3. 🐘 Risque d'engorgement de la base de données (`wasgo_log`)
-- **Fichier** : `class-wasgo-logs.php`
-- **Mécanisme** : Chaque succès et chaque échec crée une entrée complète dans `wp_posts` (`post_type = 'wasgo_log'`) et 5 entrées dans `wp_postmeta`.
-- **Risque CRO / Performance** : Sur une boutique WooCommerce avec 5 000 produits et 20 000 images, un traitement en masse va injecter 25 000 posts et plus de 100 000 métadonnées dans les tables centrales de WordPress. Sur des hébergements haute performance (ex: Rocket.net), cela dégrade les index MySQL et alourdit inutilement les sauvegardes.
-- **Alternative supérieure** : Exploiter le système natif `WC_Logger` (`wc_get_logger()`) qui écrit dans des fichiers de logs tournants dans `wp-content/uploads/wc-logs/`, ou une table personnalisée légère et indexée sans toucher à `wp_posts`.
+### 3. 🐘 Risque d'engorgement de la base de données (`wasgo_log`) (ARBITRAGE VALIDÉ)
+- **Décision validée** : Migration actée vers `WC_Logger` (`wc_get_logger()`). Les logs seront écrits dans des fichiers tournants dans `wp-content/uploads/wc-logs/` (visualisables directement dans WooCommerce > État > Journaux) avec une interface admin dédiée sans polluer `wp_posts` ni dégrader les index MySQL / Rocket.net.
 
-### 4. 🌍 L'angle mort du "GEO" dans `woo-ai-seo-geo`
-- **Observation** : Le plugin s'appelle `WooCommerce AI SEO & GEO Optimization`, mais l'analyse intégrale du code montre qu'il n'existe **absolument aucun module GEO** (zéro balisage Schema.org LocalBusiness / GeoCoordinates, zéro personnalisation de contenu par commune ou zone de chalandise de La Réunion, zéro ciblage géographique dans les prompts).
-- **Opportunité** : Développer un vrai moteur de contextualisation locale (ex: inclusion dynamique des zones de livraison à La Réunion, villes desservies, arguments insulaires, microdonnées locales JSON-LD).
+### 4. 🌍 L'angle mort du "GEO" dans `woo-ai-seo-geo` (ARBITRAGE VALIDÉ)
+- **Décision validée** : Priorité absolue donnée à la fiabilisation et l'optimisation des modules Images et Contenu SEO existants. La brique GEO (Schema.org LocalBusiness, ancrage communes de La Réunion, etc.) est volontairement mise de côté pour cette phase de développement.
 
-### 5. 💰 Dualité des Fournisseurs d'IA (Gemini pour Image + OpenAI pour Texte)
-- **Observation** : Le plugin oblige le commerçant à détenir et payer deux comptes séparés : Google AI Studio (Gemini) ET OpenAI (GPT-4o).
-- **Recommandation** :
-  - Gemini 2.0 Flash / 1.5 Pro sait désormais exceller en rédaction textuelle structurée (JSON Schema) et en vision pour un coût 10 à 20 fois inférieur à GPT-4o.
-  - Offrir la possibilité d'utiliser un fournisseur unique (100% Gemini ou 100% OpenAI / Anthropic) réduirait la friction opérationnelle et le coût pour les clients de l'agence SOYOO.
+### 5. 💰 Sélecteur de Providers & Nouveaux Moteurs d'Images (ARBITRAGE VALIDÉ)
+- **Décision validée** :
+  - Mise en place d'un sélecteur de provider configurable dans les réglages.
+  - Intégration des API **Magnific** et **Higgsfield** (pour lesquelles Julien dispose d'abonnements actifs) pour la génération d'images haute fidélité.
+  - Utilisation privilégiée du modèle **Gemini Nano Banana** (`imagen-nano-banana-2`) via l'API Magnific pour standardiser les rendus packshots sans blocage de marque/copyright.
+  - Modularité pour la génération de texte (OpenAI GPT-4o, Google Gemini, Anthropic Claude).
+
+---
+
+## 🎯 6. Feuille de Route & Prochaines Étapes de Développement
+
+1. **Lot 1 — Moteur de Logs Propre (WC_Logger)** :
+   - Remplacer l'insertion CPT `wasgo_log` dans `wp_posts` par `wc_get_logger()` avec le contexte `wasgo-image` et `wasgo-content`.
+   - Fournir un lecteur de logs épuré dans l'onglet admin ou faire le lien natif vers l'écran des logs WooCommerce.
+   - Prévoir une migration douce / nettoyage des anciens posts `wasgo_log` orphelins.
+
+2. **Lot 2 — Sélecteur de Providers & Moteur d'Images (Magnific / Higgsfield / Gemini)** :
+   - Ajouter l'abstraction `WASGO_Image_Provider_Interface` pour découpler le moteur d'image du reste du plugin.
+   - Implémenter l'adaptateur **Magnific API** (avec support du modèle `imagen-nano-banana-2` / Nano Banana Pro).
+   - Implémenter l'adaptateur **Higgsfield API**.
+   - Maintenir l'adaptateur direct **Google Gemini** en repli.
+   - Ajouter les champs de saisie des clés API et le sélecteur dans l'onglet Réglages.
+
+3. **Lot 3 — Moteur de Texte & Fact-Checking Multi-Modèles** :
+   - Abstraire la génération et validation de texte pour supporter à la fois OpenAI (GPT-4o) et Google Gemini (Gemini 2.0 Flash / Pro).
+   - Sécuriser les timeouts et la résilience sur les volumineux catalogues.
+
+4. **Lot 4 — Tests en Conditions Réelles sur `comptoirdecambaie.re`** :
+   - Validation en préproduction / staging.
+   - Déploiement sans régression.

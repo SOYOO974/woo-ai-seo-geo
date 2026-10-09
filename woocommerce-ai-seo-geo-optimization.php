@@ -26,8 +26,10 @@ $myUpdateChecker = PucFactory::buildUpdateChecker(
 //Set the branch that contains the stable release.
 $myUpdateChecker->setBranch('main');
 
-//Optional: If you're using a private repository, specify the access token like this:
-$myUpdateChecker->setAuthentication('WASGO_GITHUB_TOKEN_REDACTED');
+// Optional: Private repo access token defined via wp-config.php constant if needed
+if ( defined( 'WASGO_GITHUB_ACCESS_TOKEN' ) && WASGO_GITHUB_ACCESS_TOKEN ) {
+    $myUpdateChecker->setAuthentication( WASGO_GITHUB_ACCESS_TOKEN );
+}
 
 define( 'WASGO_VERSION', '4.3' );
 define( 'WASGO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
