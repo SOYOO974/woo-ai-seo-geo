@@ -438,87 +438,95 @@ class WASGO_Admin_Menu {
     }
 
     private function render_tab_logs() {
-        $paged = isset( $_GET['paged'] ) ? max( 1, intval( $_GET['paged'] ) ) : 1;
-        $posts_per_page = 20;
+        if ( isset( $_POST['wasgo_clear_all_logs'] ) && check_admin_referer( 'wasgo_clear_logs', 'wasgo_logs_nonce' ) ) {
+            WASGO_Logs::clear_logs( 'image' );
+            echo "<script>location.href='admin.php?page=wasgo-enhance-images&tab=logs';</script>";
+            return;
+        }
 
-        $query = new WP_Query([
-            'post_type'      => 'wasgo_log',
-            'post_status'    => 'publish',
-            'posts_per_page' => $posts_per_page,
-            'paged'          => $paged,
-            'orderby'        => 'date',
-            'order'          => 'DESC',
-            'meta_query'     => [
-                'relation' => 'OR',
-                [
-                    'key'     => '_wasgo_log_type',
-                    'value'   => 'image',
-                    'compare' => '='
-                ],
-                [
-                    'key'     => '_wasgo_log_type',
-                    'compare' => 'NOT EXISTS'
-                ]
-            ]
-        ]);
+        if ( isset( $_POST['wasgo_purge_legacy_db'] ) && check_admin_referer( 'wasgo_clear_logs', 'wasgo_logs_nonce' ) ) {
+            WASGO_Logs::purge_legacy_posts( 5000 );
+            echo "<script>location.href='admin.php?page=wasgo-enhance-images&tab=logs';</script>";
+            return;
+        }
+
+        $logs = WASGO_Logs::get_logs( 'image', 'error', 50 );
+        $legacy_count = WASGO_Logs::get_legacy_posts_count();
+        $wc_logs_url = WASGO_Logs::get_wc_logs_url( 'image' );
         ?>
-        <p class="description">Displays logs exclusively for products that failed image generation during bulk processing.</p>
-        
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <p style="margin: 0; font-size: 13px; color: #475569;">
+                    <strong style="color: #0f172a;">⚡ Moteur de logs optimisé (WC_Logger) :</strong>
+                    Les événements sont écrits dans des fichiers tournants dans <code>wp-content/uploads/wc-logs/</code> sans aucun impact sur la table <code>wp_posts</code>.
+                </p>
+            </div>
+            <div>
+                <a href="<?php echo esc_url( $wc_logs_url ); ?>" target="_blank" class="button button-secondary" style="display: inline-flex; align-items: center; gap: 5px;">
+                    <span class="dashicons dashicons-external" style="margin-top: 3px;"></span>
+                    Journaux WooCommerce
+                </a>
+            </div>
+        </div>
+
+        <?php if ( $legacy_count > 0 ) : ?>
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="color: #991b1b; font-size: 13px;">
+                    <strong>Nettoyage base de données :</strong> Il reste <strong><?php echo esc_html( $legacy_count ); ?></strong> anciens logs dans la table <code>wp_posts</code> (ancien système).
+                </div>
+                <form method="post" style="margin: 0;">
+                    <?php wp_nonce_field( 'wasgo_clear_logs', 'wasgo_logs_nonce' ); ?>
+                    <button type="submit" name="wasgo_purge_legacy_db" class="button" style="color: #b91c1c; border-color: #fca5a5;" onclick="return confirm('Purger définitivement les anciens logs de wp_posts ?');">
+                        Purger la table wp_posts
+                    </button>
+                </form>
+            </div>
+        <?php endif; ?>
+
         <table class="wp-list-table widefat fixed striped">
             <thead>
                 <tr>
-                    <th style="width: 20%;">Date / Time</th>
-                    <th style="width: 15%;">Product ID</th>
-                    <th style="width: 30%;">Product Title</th>
-                    <th style="width: 35%;">Error Detail</th>
+                    <th style="width: 20%;">Date / Heure</th>
+                    <th style="width: 15%;">ID Produit</th>
+                    <th style="width: 30%;">Titre du Produit</th>
+                    <th style="width: 35%;">Détail de l'Erreur</th>
                 </tr>
             </thead>
             <tbody>
-                <?php if ( $query->have_posts() ) : while ( $query->have_posts() ) : $query->the_post(); 
-                    $product_id = get_post_meta( get_the_ID(), 'failed_product_id', true );
-                    $error_msg  = get_post_meta( get_the_ID(), 'error_message', true );
+                <?php if ( ! empty( $logs ) ) : foreach ( $logs as $entry ) : 
+                    $pid = $entry['item_id'];
+                    $edit_url = $pid ? admin_url( 'post.php?post=' . $pid . '&action=edit' ) : '#';
                 ?>
                 <tr>
-                    <td><strong><?php echo get_the_date('Y-m-d') . ' <br>' . get_the_time('H:i:s'); ?></strong></td>
-                    <td><a href="<?php echo esc_url( admin_url('post.php?post=' . $product_id . '&action=edit') ); ?>" target="_blank">#<?php echo esc_html( $product_id ); ?></a></td>
-                    <td><strong><?php echo esc_html( get_the_title() ); ?></strong></td>
-                    <td style="color: #d63638;"><?php echo esc_html( $error_msg ); ?></td>
+                    <td><strong><?php echo esc_html( $entry['date'] ); ?></strong></td>
+                    <td>
+                        <?php if ( $pid ) : ?>
+                            <a href="<?php echo esc_url( $edit_url ); ?>" target="_blank">#<?php echo esc_html( $pid ); ?></a>
+                        <?php else : ?>
+                            <span style="color: #94a3b8;">N/A</span>
+                        <?php endif; ?>
+                    </td>
+                    <td><strong><?php echo esc_html( $entry['title'] ); ?></strong></td>
+                    <td style="color: #d63638;"><?php echo esc_html( $entry['message'] ); ?></td>
                 </tr>
-                <?php endwhile; else: ?>
+                <?php endforeach; else : ?>
                 <tr>
-                    <td colspan="4">No errors exist. Excellent!</td>
+                    <td colspan="4" style="text-align: center; padding: 30px; color: #64748b;">
+                        Aucune erreur d'optimisation d'image enregistrée. Tout fonctionne parfaitement !
+                    </td>
                 </tr>
-                <?php endif; wp_reset_postdata(); ?>
+                <?php endif; ?>
             </tbody>
         </table>
 
-        <div class="tablenav bottom">
-            <div class="tablenav-pages">
-                <?php
-                echo paginate_links([
-                    'base'      => add_query_arg('paged', '%#%'),
-                    'format'    => '',
-                    'prev_text' => __( '&laquo; Previous' ),
-                    'next_text' => __( 'Next &raquo;' ),
-                    'total'     => $query->max_num_pages,
-                    'current'   => $paged
-                ]);
-                ?>
-            </div>
-            
+        <div class="tablenav bottom" style="margin-top: 15px;">
             <form method="post" action="" style="float: left;">
                 <?php wp_nonce_field( 'wasgo_clear_logs', 'wasgo_logs_nonce' ); ?>
-                <input type="submit" name="wasgo_clear_all_logs" class="button" onclick="return confirm('Are you sure you want to clear all error logs?');" value="Clear All Logs">
+                <input type="submit" name="wasgo_clear_all_logs" class="button" onclick="return confirm('Vider les fichiers de logs d\'images ?');" value="Vider les logs d'images">
             </form>
-            <?php
-            if ( isset($_POST['wasgo_clear_all_logs']) && check_admin_referer('wasgo_clear_logs', 'wasgo_logs_nonce') ) {
-                $logs = get_posts([ 'post_type' => 'wasgo_log', 'numberposts' => -1, 'post_status' => 'any' ]);
-                foreach ( $logs as $log ) {
-                    wp_delete_post( $log->ID, true );
-                }
-                echo "<script>location.href='admin.php?page=wasgo-enhance-images&tab=logs';</script>";
-            }
-            ?>
+            <div style="float: right; color: #64748b; font-size: 12px; line-height: 28px;">
+                Affichage des 50 erreurs les plus récentes (fichiers tournants WC_Logger)
+            </div>
         </div>
         <?php
     }
@@ -1112,57 +1120,90 @@ class WASGO_Admin_Menu {
         <?php
     }
     private function render_tab_success_logs() {
-        $paged = isset( $_GET['paged'] ) ? max( 1, intval( $_GET['paged'] ) ) : 1;
-        $args = [
-            'post_type'      => 'wasgo_log',
-            'posts_per_page' => 20,
-            'paged'          => $paged,
-            'orderby'        => 'date',
-            'order'          => 'DESC',
-            'meta_query'     => [
-                'relation' => 'AND',
-                [
-                    'key'   => '_wasgo_log_type',
-                    'value' => 'content'
-                ],
-                [
-                    'key'   => '_wasgo_log_nature',
-                    'value' => 'success'
-                ]
-            ]
-        ];
-        $query = new WP_Query( $args );
+        if ( isset( $_POST['wasgo_clear_success_logs'] ) && check_admin_referer( 'wasgo_clear_logs', 'wasgo_logs_nonce' ) ) {
+            WASGO_Logs::clear_logs( 'content' );
+            echo "<script>location.href='admin.php?page=wasgo-content-generation&tab=success_logs';</script>";
+            return;
+        }
+
+        if ( isset( $_POST['wasgo_purge_legacy_db'] ) && check_admin_referer( 'wasgo_clear_logs', 'wasgo_logs_nonce' ) ) {
+            WASGO_Logs::purge_legacy_posts( 5000 );
+            echo "<script>location.href='admin.php?page=wasgo-content-generation&tab=success_logs';</script>";
+            return;
+        }
+
+        $logs = WASGO_Logs::get_logs( 'content', 'success', 50 );
+        $legacy_count = WASGO_Logs::get_legacy_posts_count();
+        $wc_logs_url = WASGO_Logs::get_wc_logs_url( 'content' );
         ?>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <p style="margin: 0; font-size: 13px; color: #475569;">
+                    <strong style="color: #0f172a;">⚡ Moteur de logs optimisé (WC_Logger) :</strong>
+                    L'historique des générations réussies est consigné dans les fichiers <code>wc-logs/wasgo-content-*.log</code>.
+                </p>
+            </div>
+            <div>
+                <a href="<?php echo esc_url( $wc_logs_url ); ?>" target="_blank" class="button button-secondary" style="display: inline-flex; align-items: center; gap: 5px;">
+                    <span class="dashicons dashicons-external" style="margin-top: 3px;"></span>
+                    Journaux WooCommerce
+                </a>
+            </div>
+        </div>
+
+        <?php if ( $legacy_count > 0 ) : ?>
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="color: #991b1b; font-size: 13px;">
+                    <strong>Nettoyage base de données :</strong> Il reste <strong><?php echo esc_html( $legacy_count ); ?></strong> anciens logs dans la table <code>wp_posts</code>.
+                </div>
+                <form method="post" style="margin: 0;">
+                    <?php wp_nonce_field( 'wasgo_clear_logs', 'wasgo_logs_nonce' ); ?>
+                    <button type="submit" name="wasgo_purge_legacy_db" class="button" style="color: #b91c1c; border-color: #fca5a5;" onclick="return confirm('Purger définitivement les anciens logs de wp_posts ?');">
+                        Purger la table wp_posts
+                    </button>
+                </form>
+            </div>
+        <?php endif; ?>
+
         <div class="wasgo-admin-card" style="padding:0; overflow:hidden;">
             <div style="padding: 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fff;">
-                <h3 style="margin:0; font-size: 16px; color: #1e293b;">Successfully Generated Products</h3>
+                <h3 style="margin:0; font-size: 16px; color: #1e293b;">Éléments Générés avec Succès</h3>
                 <form method="post" style="margin:0;">
-                    <?php wp_nonce_field('wasgo_clear_logs', 'wasgo_logs_nonce'); ?>
-                    <button type="submit" name="wasgo_clear_success_logs" class="button button-secondary" style="color: #64748b; border-color: #e2e8f0;">Clear Success History</button>
+                    <?php wp_nonce_field( 'wasgo_clear_logs', 'wasgo_logs_nonce' ); ?>
+                    <button type="submit" name="wasgo_clear_success_logs" class="button button-secondary" style="color: #64748b; border-color: #e2e8f0;" onclick="return confirm('Vider l\'historique des succès ?');">
+                        Vider l'historique des succès
+                    </button>
                 </form>
             </div>
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
-                        <th style="width: 18%; padding-left: 20px;">Date / Time</th>
-                        <th style="width: 35%;">Product</th>
-                        <th style="width: 27%;">Update Detail</th>
+                        <th style="width: 18%; padding-left: 20px;">Date / Heure</th>
+                        <th style="width: 35%;">Élément</th>
+                        <th style="width: 27%;">Détail Mise à Jour</th>
                         <th style="width: 20%; text-align: right; padding-right: 20px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if ( $query->have_posts() ) : while ( $query->have_posts() ) : $query->the_post(); 
-                        $log_id = get_the_ID();
-                        $pid = get_post_meta( $log_id, 'success_product_id', true );
-                        $msg = get_post_meta( $log_id, 'success_message', true );
-                        $log_data = get_post_meta( $log_id, '_wasgo_log_data', true );
-                        $product_url = get_permalink( $pid );
-                        $edit_url = get_edit_post_link( $pid );
+                    <?php if ( ! empty( $logs ) ) : foreach ( $logs as $idx => $entry ) : 
+                        $pid = $entry['item_id'];
+                        $msg = $entry['message'];
+                        $log_data = $entry['data'];
+                        $target_id = 'log-content-entry-' . $idx;
+
+                        $is_term = strpos( $entry['title'], 'Category:' ) === 0;
+                        if ( $is_term ) {
+                            $product_url = get_term_link( $pid, 'product_cat' );
+                            $edit_url = admin_url( 'term.php?taxonomy=product_cat&tag_ID=' . $pid . '&post_type=product' );
+                        } else {
+                            $product_url = $pid ? get_permalink( $pid ) : '#';
+                            $edit_url = $pid ? get_edit_post_link( $pid ) : '#';
+                        }
                     ?>
                     <tr>
-                        <td style="padding-left: 20px; color: #64748b; font-size: 13px;"><?php echo get_the_date( 'M j, H:i' ); ?></td>
+                        <td style="padding-left: 20px; color: #64748b; font-size: 13px;"><?php echo esc_html( $entry['date'] ); ?></td>
                         <td>
-                            <strong style="color: #1e293b;">#<?php echo esc_html( $pid ); ?> - <?php the_title(); ?></strong>
+                            <strong style="color: #1e293b;">#<?php echo esc_html( $pid ); ?> - <?php echo esc_html( $entry['title'] ); ?></strong>
                         </td>
                         <td>
                             <span style="display:inline-block; padding: 2px 8px; border-radius: 4px; background: #dcfce7; color: #166534; font-size: 11px; font-weight: 600; width: fit-content;">
@@ -1174,22 +1215,26 @@ class WASGO_Admin_Menu {
                             <div style="display: flex; gap: 8px; justify-content: flex-end;">
                                 <?php if ( ! empty( $log_data ) ) : ?>
                                     <button type="button" class="wasgo-toggle-log-content button button-small" 
-                                            data-target="log-content-<?php echo $log_id; ?>" 
+                                            data-target="<?php echo esc_attr( $target_id ); ?>" 
                                             style="background: #6366f1; border-color: #4f46e5; color: #fff;">
                                         <span class="dashicons dashicons-media-document" style="margin-top: 4px;"></span> Preview Content
                                     </button>
                                 <?php endif; ?>
-                                <a href="<?php echo esc_url( $product_url ); ?>" target="_blank" class="button button-small" title="View on Site">
-                                    <span class="dashicons dashicons-visibility" style="margin-top: 4px;"></span> View
-                                </a>
-                                <a href="<?php echo esc_url( $edit_url ); ?>" target="_blank" class="button button-small" title="Edit in Admin">
-                                    <span class="dashicons dashicons-edit" style="margin-top: 4px;"></span> Edit
-                                </a>
+                                <?php if ( $pid && ! is_wp_error( $product_url ) && $product_url !== '#' ) : ?>
+                                    <a href="<?php echo esc_url( $product_url ); ?>" target="_blank" class="button button-small" title="Voir sur le site">
+                                        <span class="dashicons dashicons-visibility" style="margin-top: 4px;"></span> Voir
+                                    </a>
+                                <?php endif; ?>
+                                <?php if ( $pid && $edit_url !== '#' ) : ?>
+                                    <a href="<?php echo esc_url( $edit_url ); ?>" target="_blank" class="button button-small" title="Modifier dans l'administration">
+                                        <span class="dashicons dashicons-edit" style="margin-top: 4px;"></span> Modifier
+                                    </a>
+                                <?php endif; ?>
                             </div>
                         </td>
                     </tr>
                     <?php if ( ! empty( $log_data ) ) : ?>
-                    <tr id="log-content-<?php echo $log_id; ?>" style="display:none; background: #f8fafc; border-left: 4px solid #6366f1;">
+                    <tr id="<?php echo esc_attr( $target_id ); ?>" style="display:none; background: #f8fafc; border-left: 4px solid #6366f1;">
                         <td colspan="4" style="padding: 20px;">
                             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px;">
                                 <?php foreach ( $log_data as $label => $content ) : ?>
@@ -1199,7 +1244,7 @@ class WASGO_Admin_Menu {
                                             <?php echo esc_html( $label ); ?>
                                         </div>
                                         <div style="font-size: 13px; color: #334155; line-height: 1.6; max-height: 200px; overflow-y: auto; padding-right: 5px;" class="wasgo-custom-scrollbar">
-                                            <?php echo nl2br( esc_html( $content ) ); ?>
+                                            <?php echo nl2br( esc_html( is_array( $content ) ? wp_json_encode( $content ) : $content ) ); ?>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -1207,107 +1252,88 @@ class WASGO_Admin_Menu {
                         </td>
                     </tr>
                     <?php endif; ?>
-                    <?php endwhile; wp_reset_postdata(); else : ?>
+                    <?php endforeach; else : ?>
                     <tr>
                         <td colspan="4" style="padding: 60px; text-align: center; color: #64748b;">
                             <span class="dashicons dashicons-clock" style="font-size: 40px; width: 40px; height: 40px; display: block; margin: 0 auto 15px; color: #cbd5e1;"></span>
-                            No successful updates recorded yet. Start a generation to see results here.
+                            Aucun succès consigné pour le moment.
                         </td>
                     </tr>
                     <?php endif; ?>
                 </tbody>
             </table>
-            <?php if ( $query->max_num_pages > 1 ) : ?>
-                <div class="tablenav bottom" style="padding: 15px;">
-                    <div class="tablenav-pages">
-                        <?php
-                        echo paginate_links( [
-                            'base'      => add_query_arg( 'paged', '%#%' ),
-                            'format'    => '',
-                            'prev_text' => __( '&laquo;' ),
-                            'next_text' => __( '&raquo;' ),
-                            'total'     => $query->max_num_pages,
-                            'current'   => $paged,
-                        ] );
-                        ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <?php
-            // Handle clearing success logs
-            if ( isset($_POST['wasgo_clear_success_logs']) && check_admin_referer('wasgo_clear_logs', 'wasgo_logs_nonce') ) {
-                $logs_to_clear = get_posts([
-                    'post_type'      => 'wasgo_log',
-                    'numberposts'    => -1,
-                    'post_status'    => 'any',
-                    'meta_query'     => [
-                        'relation' => 'AND',
-                        ['key' => '_wasgo_log_type', 'value' => 'content'],
-                        ['key' => '_wasgo_log_nature', 'value' => 'success']
-                    ]
-                ]);
-                foreach ( $logs_to_clear as $log ) {
-                    wp_delete_post( $log->ID, true );
-                }
-                echo "<script>location.href='admin.php?page=wasgo-content-generation&tab=success_logs';</script>";
-            }
-            ?>
+            <div style="padding: 15px 20px; background: #fff; border-top: 1px solid #f1f5f9; text-align: right; color: #64748b; font-size: 12px;">
+                Affichage des 50 succès les plus récents (WC_Logger)
+            </div>
         </div>
         <?php
     }
 
-
     private function render_content_tab_logs() {
-        $args = [
-            'post_type'      => 'wasgo_log',
-            'posts_per_page' => 20,
-            'orderby'        => 'date',
-            'order'          => 'DESC',
-            'meta_query'     => [
-                'relation' => 'AND',
-                [
-                    'key'   => '_wasgo_log_type',
-                    'value' => 'content'
-                ],
-                [
-                    'key'   => '_wasgo_log_nature',
-                    'value' => 'error'
-                ]
-            ]
-        ];
-        $query = new WP_Query( $args );
+        if ( isset( $_POST['wasgo_clear_content_error_logs'] ) && check_admin_referer( 'wasgo_clear_logs', 'wasgo_logs_nonce' ) ) {
+            WASGO_Logs::clear_logs( 'content' );
+            echo "<script>location.href='admin.php?page=wasgo-content-generation&tab=logs';</script>";
+            return;
+        }
+
+        $logs = WASGO_Logs::get_logs( 'content', 'error', 50 );
+        $wc_logs_url = WASGO_Logs::get_wc_logs_url( 'content' );
         ?>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <p style="margin: 0; font-size: 13px; color: #475569;">
+                    <strong style="color: #0f172a;">⚡ Moteur de logs optimisé (WC_Logger) :</strong>
+                    Les erreurs de génération de contenu sont écrites dans <code>wc-logs/wasgo-content-*.log</code>.
+                </p>
+            </div>
+            <div>
+                <a href="<?php echo esc_url( $wc_logs_url ); ?>" target="_blank" class="button button-secondary" style="display: inline-flex; align-items: center; gap: 5px;">
+                    <span class="dashicons dashicons-external" style="margin-top: 3px;"></span>
+                    Journaux WooCommerce
+                </a>
+            </div>
+        </div>
+
         <div class="wasgo-admin-card" style="padding:0; overflow:hidden;">
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
-                        <th style="width: 20%; padding-left: 20px;">Date / Time</th>
-                        <th style="width: 15%;">Product ID</th>
-                        <th style="width: 45%;">Error Reason</th>
-                        <th style="width: 20%; text-align: right; padding-right: 20px;">Product Name</th>
+                        <th style="width: 20%; padding-left: 20px;">Date / Heure</th>
+                        <th style="width: 15%;">ID Élément</th>
+                        <th style="width: 45%;">Raison de l'Erreur</th>
+                        <th style="width: 20%; text-align: right; padding-right: 20px;">Titre Élément</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if ( $query->have_posts() ) : while ( $query->have_posts() ) : $query->the_post(); 
-                        $pid = get_post_meta( get_the_ID(), 'failed_product_id', true );
-                        $msg = get_post_meta( get_the_ID(), 'error_message', true );
+                    <?php if ( ! empty( $logs ) ) : foreach ( $logs as $entry ) : 
+                        $pid = $entry['item_id'];
                     ?>
                     <tr>
-                        <td style="padding-left: 20px;"><?php echo get_the_date( 'Y-m-d H:i' ); ?></td>
+                        <td style="padding-left: 20px;"><?php echo esc_html( $entry['date'] ); ?></td>
                         <td>#<?php echo esc_html( $pid ); ?></td>
-                        <td style="color: #ef4444;"><?php echo esc_html( $msg ); ?></td>
-                        <td style="text-align: right; padding-right: 20px;"><?php the_title(); ?></td>
+                        <td style="color: #ef4444;"><?php echo esc_html( $entry['message'] ); ?></td>
+                        <td style="text-align: right; padding-right: 20px;"><?php echo esc_html( $entry['title'] ); ?></td>
                     </tr>
-                    <?php endwhile; wp_reset_postdata(); else : ?>
+                    <?php endforeach; else : ?>
                     <tr>
                         <td colspan="4" style="padding: 40px; text-align: center; color: #64748b;">
-                            No content generation failures logged.
+                            Aucune erreur de génération de contenu enregistrée.
                         </td>
                     </tr>
                     <?php endif; ?>
                 </tbody>
             </table>
+            <div style="padding: 15px 20px; background: #fff; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                <form method="post" style="margin:0;">
+                    <?php wp_nonce_field( 'wasgo_clear_logs', 'wasgo_logs_nonce' ); ?>
+                    <button type="submit" name="wasgo_clear_content_error_logs" class="button" onclick="return confirm('Vider les erreurs de contenu ?');">
+                        Vider les erreurs de contenu
+                    </button>
+                </form>
+                <div style="color: #64748b; font-size: 12px;">
+                    Affichage des 50 erreurs les plus récentes (WC_Logger)
+                </div>
+            </div>
         </div>
         <?php
     }

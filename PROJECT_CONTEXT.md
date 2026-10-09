@@ -4,7 +4,7 @@
 
 - **Nom du Plugin** : WooCommerce AI SEO & GEO Optimization (WASGO)
 - **Slug GitHub** : [`SOYOO974/woo-ai-seo-geo`](https://github.com/SOYOO974/woo-ai-seo-geo)
-- **Version actuelle** : `4.3`
+- **Version actuelle** : `4.4`
 - **Auteur** : Soyoo.re (`https://www.soyoo.re/`)
 - **Text Domain** : `wasgo`
 - **Dépendance Requise** : WooCommerce (`woocommerce/woocommerce.php`) et Action Scheduler (inclus nativement dans WooCommerce).
@@ -161,8 +161,9 @@ En posture d'associé technique et sparring-partner exigeant, voici les **5 anom
 - **Code** : `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent`
 - **Risque** : `gemini-3.1-flash-image-preview` n'est pas un endpoint public standard de l'API Google Gemini. Il convient d'aligner l'appel direct sur les endpoints officiels ou de passer par la nouvelle passerelle multi-providers (Magnific / Higgsfield).
 
-### 3. 🐘 Risque d'engorgement de la base de données (`wasgo_log`) (ARBITRAGE VALIDÉ)
-- **Décision validée** : Migration actée vers `WC_Logger` (`wc_get_logger()`). Les logs seront écrits dans des fichiers tournants dans `wp-content/uploads/wc-logs/` (visualisables directement dans WooCommerce > État > Journaux) avec une interface admin dédiée sans polluer `wp_posts` ni dégrader les index MySQL / Rocket.net.
+### 3. 🐘 Risque d'engorgement de la base de données (`wasgo_log`) (RÉSOLU v4.4)
+- **Action réalisée** : Migration complète vers `WC_Logger` (`wc_get_logger()`). Les logs sont écrits dans des fichiers tournants dans `wp-content/uploads/wc-logs/` (sources `wasgo-image` et `wasgo-content`) sans aucun post ni meta dans `wp_posts` / `wp_postmeta`.
+- **Interface d'administration** : Lecteur haute performance sans requête MySQL lourde (`read_last_lines` via `fseek` arrière à empreinte mémoire fixe < 1 Mo) avec aperçu contextuel JSON, lien natif vers WooCommerce > État > Journaux, et bouton de purge immédiate des anciens posts résiduels en base.
 
 ### 4. 🌍 L'angle mort du "GEO" dans `woo-ai-seo-geo` (ARBITRAGE VALIDÉ)
 - **Décision validée** : Priorité absolue donnée à la fiabilisation et l'optimisation des modules Images et Contenu SEO existants. La brique GEO (Schema.org LocalBusiness, ancrage communes de La Réunion, etc.) est volontairement mise de côté pour cette phase de développement.
@@ -178,10 +179,10 @@ En posture d'associé technique et sparring-partner exigeant, voici les **5 anom
 
 ## 🎯 6. Feuille de Route & Prochaines Étapes de Développement
 
-1. **Lot 1 — Moteur de Logs Propre (WC_Logger)** :
-   - Remplacer l'insertion CPT `wasgo_log` dans `wp_posts` par `wc_get_logger()` avec le contexte `wasgo-image` et `wasgo-content`.
-   - Fournir un lecteur de logs épuré dans l'onglet admin ou faire le lien natif vers l'écran des logs WooCommerce.
-   - Prévoir une migration douce / nettoyage des anciens posts `wasgo_log` orphelins.
+1. **Lot 1 — Moteur de Logs Propre (WC_Logger)** : **[TERMINÉ v4.4]**
+   - Remplacement de l'insertion CPT `wasgo_log` par `wc_get_logger()` avec le contexte `wasgo-image` et `wasgo-content`.
+   - Lecteur de logs optimisé dans les onglets admin (Images et Contenu) avec liaison vers WooCommerce > État > Journaux.
+   - Outil de purge en 1 clic des anciens posts `wasgo_log` et `postmeta` résiduels dans `wp_posts`.
 
 2. **Lot 2 — Sélecteur de Providers & Moteur d'Images (Magnific / Higgsfield / Gemini)** :
    - Ajouter l'abstraction `WASGO_Image_Provider_Interface` pour découpler le moteur d'image du reste du plugin.

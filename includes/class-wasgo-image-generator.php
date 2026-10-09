@@ -208,6 +208,8 @@ class WASGO_Image_Generator {
             }
         }
 
+        WASGO_Logs::log_success( $product_id, "Image successfully generated and optimized (Attachment #$attach_id).", 'image', [ 'attachment_id' => $attach_id, 'file' => basename( $file_path ) ] );
+
         return true;
     }
 
@@ -370,6 +372,8 @@ class WASGO_Image_Generator {
             // New run, user strictly hates originals. Delete it.
             wp_delete_attachment( $source_id, true );
         }
+
+        WASGO_Logs::log_success( $product_id, "Gallery image successfully optimized (Attachment #$new_attach_id).", 'image', [ 'attachment_id' => $new_attach_id, 'file' => basename( $file_path ) ] );
     }
 
     /**

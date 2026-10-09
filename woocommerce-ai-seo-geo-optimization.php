@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce AI SEO & GEO Optimization
  * Plugin URI:  https://github.com/SOYOO974/woo-ai-seo-geo.git
  * Description: Integrates Gemini 3.1 Flash Image API to regenerate product images and perform bulk optimizations.
- * Version: 4.3
+ * Version: 4.4
  * Author:      Soyoo.re
  * Author URI:  https://www.soyoo.re/
  * Text Domain: wasgo
@@ -31,7 +31,7 @@ if ( defined( 'WASGO_GITHUB_ACCESS_TOKEN' ) && WASGO_GITHUB_ACCESS_TOKEN ) {
     $myUpdateChecker->setAuthentication( WASGO_GITHUB_ACCESS_TOKEN );
 }
 
-define( 'WASGO_VERSION', '4.3' );
+define( 'WASGO_VERSION', '4.4' );
 define( 'WASGO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WASGO_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 

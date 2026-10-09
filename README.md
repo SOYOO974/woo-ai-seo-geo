@@ -1,6 +1,6 @@
 # WooCommerce AI SEO & GEO Optimization
 
-[![Version](https://img.shields.io/badge/version-4.3-blue.svg)](https://github.com/SOYOO974/woo-ai-seo-geo)
+[![Version](https://img.shields.io/badge/version-4.4-blue.svg)](https://github.com/SOYOO974/woo-ai-seo-geo)
 [![WooCommerce](https://img.shields.io/badge/WooCommerce-Compatible-purple.svg)](https://woocommerce.com/)
 [![PHP](https://img.shields.io/badge/PHP-%3E%3D8.0-777bb4.svg)](https://www.php.net/)
 
@@ -15,6 +15,11 @@ Extension in-house mutualisée développée par **[SOYOO](https://www.soyoo.re/)
   - Conversion et compression automatique en WebP (`wp_get_image_editor`).
   - Système de sauvegarde avec restauration en 1 clic de l'original.
   - Verrou de synchronisation ERP (`prevent_ebp_image_sync`).
+- **Moteur de Logs Haute Performance (`WC_Logger`)** :
+  - Journalisation native par fichiers tournants dans `wp-content/uploads/wc-logs/`.
+  - Protection absolue des tables centrales (`wp_posts` et `wp_postmeta`) contre la saturation.
+  - Intégration transparente avec WooCommerce > État > Journaux et lecteur optimisé dans l'administration WASGO.
+  - Outil de purge instantané des anciens logs résiduels en base.
 - **Génération de Contenu SEO Produit & Catégorie (GPT-4o)** :
   - Descriptions courtes, longues, Meta Titles et Meta Descriptions sur-mesure.
   - Intégration des attributs WooCommerce et spécifications techniques dynamiques.
