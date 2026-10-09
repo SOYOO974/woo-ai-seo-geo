@@ -1,0 +1,26 @@
+# Archives & Builds
+*.zip
+*.tar.gz
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*~
+
+# Logs & temp
+*.log
+scratch/
+tmp/
