@@ -25,11 +25,19 @@ $myUpdateChecker = PucFactory::buildUpdateChecker(
 
 //Set the branch that contains the stable release.
 $myUpdateChecker->setBranch('main');
+$myUpdateChecker->getVcsApi()->enableReleaseAssets();
 
 // Optional: Private repo access token defined via wp-config.php constant if needed
 if ( defined( 'WASGO_GITHUB_ACCESS_TOKEN' ) && WASGO_GITHUB_ACCESS_TOKEN ) {
     $myUpdateChecker->setAuthentication( WASGO_GITHUB_ACCESS_TOKEN );
 }
+
+// Declare compatibility with WooCommerce High-Performance Order Storage (HPOS)
+add_action( 'before_woocommerce_init', function () {
+    if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+    }
+} );
 
 define( 'WASGO_VERSION', '4.5' );
 define( 'WASGO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
