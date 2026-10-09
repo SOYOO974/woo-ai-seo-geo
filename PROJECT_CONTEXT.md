@@ -4,7 +4,7 @@
 
 - **Nom du Plugin** : WooCommerce AI SEO & GEO Optimization (WASGO)
 - **Slug GitHub** : [`SOYOO974/woo-ai-seo-geo`](https://github.com/SOYOO974/woo-ai-seo-geo)
-- **Version actuelle** : `4.4`
+- **Version actuelle** : `4.5`
 - **Auteur** : Soyoo.re (`https://www.soyoo.re/`)
 - **Text Domain** : `wasgo`
 - **Dépendance Requise** : WooCommerce (`woocommerce/woocommerce.php`) et Action Scheduler (inclus nativement dans WooCommerce).
@@ -12,7 +12,7 @@
 
 ### Mission Principale
 Fournir une suite d'automatisation IA native pour WooCommerce permettant de :
-1. **Régénérer et sublimer les images produits & galeries** via Google Gemini Image API (avec conversion WebP, redimensionnement et sauvegarde de l'original).
+1. **Régénérer et sublimer les images produits & galeries** via architecture multi-providers (**Magnific AI Nano Banana Pro**, **Higgsfield AI**, ou **Google Gemini Vision**) avec repli automatique vers Gemini en cas d'erreur ou d'épuisement de quota.
 2. **Générer le contenu textuel et métadonnées SEO** (Description courte, Description longue, Meta Title, Meta Description) pour les **Produits** et les **Catégories de Produits** via OpenAI GPT-4o.
 3. **Valider automatiquement le contenu produit contre les hallucinations** via un fact-checker IA strict à double passe (Génération -> Validation -> Retentative ou File de révision manuelle).
 4. **Synchroniser nativement les balises SEO** avec les 3 extensions majeures du marché : **The SEO Framework (TSF)**, **Rank Math SEO**, et **Yoast SEO**.
@@ -33,8 +33,8 @@ woo-ai-seo-geo/
 │       └── admin.js                        # Contrôleurs AJAX, polling Action Scheduler, prévisualisation, review queue
 ├── includes/
 │   ├── class-wasgo-settings.php            # Déclaration et sanitization de toutes les options WordPress
-│   ├── class-wasgo-logs.php                # CPT `wasgo_log` pour consigner succès & erreurs + purge cron quotidienne
-│   ├── class-wasgo-image-generator.php     # Appel Gemini Image API, gestion WebP, swap d'attachements et backups
+│   ├── class-wasgo-logs.php                # Logs résilients WC_Logger + purge batch des anciens posts CPT résiduels
+│   ├── class-wasgo-image-generator.php     # Délégation multi-providers, auto-fallback Gemini, WebP & swaps d'attachements
 │   ├── class-wasgo-batch-processor.php     # Traitement par lots Action Scheduler pour images principales & galeries
 │   ├── class-wasgo-ajax.php                # Endpoints AJAX d'images (start, stop, progress, regen unitaire, purge backup)
 │   ├── class-wasgo-content-utility.php     # Extraction métadonnées produits (attributs, specs, catégories, taxonomies)
@@ -44,7 +44,13 @@ woo-ai-seo-geo/
 │   ├── class-wasgo-content-batch-processor.php # Batch Action Scheduler pour le contenu (produits + catégories, mode 'smart')
 │   ├── class-wasgo-content-ajax.php        # Endpoints AJAX de contenu (bulk, unitaire, preview live, approbation review)
 │   ├── class-wasgo-meta-boxes.php          # Métaboxes d'édition Produit et champs de taxonomie Catégorie Produit
-│   └── class-wasgo-admin-menu.php          # Pages du panneau d'administration (Dashboard, Images, Contenu, Réglages)
+│   ├── class-wasgo-admin-menu.php          # Pages du panneau d'administration (Dashboard, Images, Contenu, Réglages)
+│   └── providers/                          # [NOUVEAU v4.5] Couche d'abstraction Multi-Providers IA Image
+│       ├── interface-wasgo-image-provider.php       # Interface commune WASGO_Image_Provider_Interface
+│       ├── class-wasgo-provider-gemini.php          # Adaptateur Google Gemini Vision (direct & fallback)
+│       ├── class-wasgo-provider-magnific.php        # Adaptateur Magnific API (JSON-RPC 2.0 / imagen-nano-banana-2)
+│       ├── class-wasgo-provider-higgsfield.php      # Adaptateur Higgsfield AI (Studio packshot avec polling)
+│       └── class-wasgo-image-provider-factory.php   # Factory et sélecteur de provider actif
 ├── AGENTS.md                               # Directives de gouvernance et protocole pour agents Antigravity
 ├── PROJECT_CONTEXT.md                      # Ce fichier (spécification complète et architecture)
 └── .gitignore                              # Exclusion builds .zip et artefacts temporaires
@@ -54,16 +60,21 @@ woo-ai-seo-geo/
 
 ## ⚙️ 3. Fonctionnement des Modules Métier
 
-### Module A : Traitement & Amélioration d'Images (Gemini Vision)
-- **Moteur IA** : Endpoint `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent` via cURL.
+### Module A : Traitement & Amélioration d'Images (Multi-Providers & Auto-Fallback)
+- **Architecture Multi-Providers** :
+  - **Magnific AI** : Connexion JSON-RPC 2.0 (`https://mcp.magnific.com`) avec upload binaire direct S3 presigné (`creations_request_upload` -> PUT -> `creations_finalize_upload`), génération via le modèle studio packshot **Nano Banana Pro** (`imagen-nano-banana-2`) sans risque de blocage copyright, et polling de complétion synchrone/asynchrone (`creations_wait`).
+  - **Higgsfield AI** : Soumission directe (`https://api.higgsfield.ai/v2/{model}`) avec prompt et image encodée data URI, support de modèles packshots studio (`higgsfield-ai/soul`) et polling du statut (`/requests/{id}/status`).
+  - **Google Gemini Vision** : Intégration directe via l'API v1beta (`gemini-3.1-flash-image-preview` ou modèle configurable).
+- **Mécanisme de Repli Automatique (Auto-Fallback Gemini)** :
+  - Si le fournisseur principal (Magnific ou Higgsfield) échoue (timeout, quota insuffisant, clé expirée), WASGO consigne un avertissement dans `WC_Logger` et rebascule automatiquement sur Google Gemini Vision pour ne jamais bloquer la file de production.
 - **Workflow d'une image** :
   1. Récupération de l'image source (originale ou backup précédent via meta `original_wasgo_image_id` / `original_ebp_image_url`).
-  2. Envoi de l'image en base64 avec le prompt configuré (`[PRODUCT_TITLE]` substitué).
-  3. Réception du flux binaire en base64 (`inline_data`).
+  2. Envoi des données binaires et du prompt (`[PRODUCT_TITLE]` substitué) au provider actif avec auto-fallback.
+  3. Réception du flux image (binaire ou base64 décodé).
   4. Si option `wasgo_auto_compress` active : redimensionnement (respect de `wasgo_max_height`), compression qualité (`wasgo_image_quality`) et conversion native en **WebP** via `wp_get_image_editor()`.
   5. Insertion du nouvel attachement WordPress et remplacement de la vignette produit (`set_post_thumbnail`).
   6. Marquage `prevent_ebp_image_sync = 1` pour éviter tout écrasement par les synchronisations ERP (ex: EBP).
-  7. Gestion de la sauvegarde : suppression de l'ancien attachement si option `wasgo_delete_original` cochée, ou conservation avec lien de restauration.
+  7. Traçabilité dans les logs : `Image successfully generated and optimized via <Nom du Provider> (Attachment #ID)`.
 - **Galeries Produits** : Support complet des galeries via `_product_image_gallery` avec tâches unitaires indépendantes dans Action Scheduler (`wasgo_process_gallery_item`).
 
 ### Module B : Génération de Contenu & Métadonnées SEO (GPT-4o)
@@ -105,7 +116,14 @@ Lors de la sauvegarde d'un titre ou d'une méta description (produit ou catégor
 ### Options Globales (`wp_options`)
 | Option | Rôle |
 |---|---|
-| `wasgo_gemini_api_key` | Clé API Google Gemini pour les images |
+| `wasgo_image_provider` | Fournisseur IA image actif (`gemini`, `magnific`, `higgsfield`) |
+| `wasgo_image_fallback_gemini` | Booléen : repli automatique vers Gemini en cas d'échec du provider principal |
+| `wasgo_gemini_api_key` | Clé API Google Gemini pour les images (direct ou fallback) |
+| `wasgo_gemini_model` | Modèle Gemini (défaut `gemini-3.1-flash-image-preview`) |
+| `wasgo_magnific_api_key` | Clé API / Bearer Token Magnific |
+| `wasgo_magnific_model` | Modèle Magnific (défaut `imagen-nano-banana-2` / Nano Banana Pro) |
+| `wasgo_higgsfield_api_key` | Clé API Higgsfield (`KEY_ID:KEY_SECRET` ou Bearer token) |
+| `wasgo_higgsfield_model` | Modèle Higgsfield (défaut `higgsfield-ai/soul`) |
 | `wasgo_openai_api_key` | Clé API OpenAI pour la génération et validation de texte |
 | `wasgo_ai_prompt` | Prompt maître pour l'optimisation des images |
 | `wasgo_delete_original` | Booléen : supprimer définitivement l'image originale après génération |
@@ -184,12 +202,13 @@ En posture d'associé technique et sparring-partner exigeant, voici les **5 anom
    - Lecteur de logs optimisé dans les onglets admin (Images et Contenu) avec liaison vers WooCommerce > État > Journaux.
    - Outil de purge en 1 clic des anciens posts `wasgo_log` et `postmeta` résiduels dans `wp_posts`.
 
-2. **Lot 2 — Sélecteur de Providers & Moteur d'Images (Magnific / Higgsfield / Gemini)** :
-   - Ajouter l'abstraction `WASGO_Image_Provider_Interface` pour découpler le moteur d'image du reste du plugin.
-   - Implémenter l'adaptateur **Magnific API** (avec support du modèle `imagen-nano-banana-2` / Nano Banana Pro).
-   - Implémenter l'adaptateur **Higgsfield API**.
-   - Maintenir l'adaptateur direct **Google Gemini** en repli.
-   - Ajouter les champs de saisie des clés API et le sélecteur dans l'onglet Réglages.
+2. **Lot 2 — Sélecteur de Providers & Moteur d'Images (Magnific / Higgsfield / Gemini)** : **[TERMINÉ v4.5]**
+   - Abstraction via `WASGO_Image_Provider_Interface` et factory `WASGO_Image_Provider_Factory`.
+   - Implémentation de l'adaptateur **Magnific API** (`WASGO_Provider_Magnific`) via JSON-RPC 2.0 (`creations_request_upload` -> PUT binaire direct -> `creations_finalize_upload` -> `images_generate` avec modèle `imagen-nano-banana-2` / Nano Banana Pro -> `creations_wait`).
+   - Implémentation de l'adaptateur **Higgsfield AI** (`WASGO_Provider_Higgsfield`) avec soumission asynchrone, polling de statut et support de clés `KEY_ID:KEY_SECRET` ou Bearer.
+   - Adaptateur **Google Gemini Vision** direct (`WASGO_Provider_Gemini`) avec modèle configurable (`gemini-3.1-flash-image-preview`).
+   - Mécanisme de repli automatique (**Auto-Fallback Gemini**) en cas d'erreur ou d'épuisement de quota du provider principal.
+   - Refonte moderne de l'écran des réglages (`render_settings_page`) avec cartes dédiées par provider, sélecteur actif et toggle de repli.
 
 3. **Lot 3 — Moteur de Texte & Fact-Checking Multi-Modèles** :
    - Abstraire la génération et validation de texte pour supporter à la fois OpenAI (GPT-4o) et Google Gemini (Gemini 2.0 Flash / Pro).

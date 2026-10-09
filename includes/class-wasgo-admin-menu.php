@@ -180,38 +180,143 @@ class WASGO_Admin_Menu {
     }
 
     public function render_settings_page() {
+        $active_provider  = WASGO_Settings::get_image_provider();
+        $fallback_enabled = WASGO_Settings::should_fallback_to_gemini();
         ?>
         <div class="wrap wasgo-premium-wrap">
             <div class="wasgo-header">
-                <h1>Settings</h1>
-                <p class="wasgo-header-subtitle">Configure your global AI integration parameters</p>
+                <h1>Settings & AI Providers</h1>
+                <p class="wasgo-header-subtitle">Configure AI Vision engines (Gemini, Magnific, Higgsfield) and SEO copywriting credentials</p>
             </div>
-            <div class="wasgo-admin-card">
-                <form method="post" action="options.php">
-                    <?php
-                    settings_fields( 'wasgo_api_group' );
-                    do_settings_sections( 'wasgo_api_group' );
-                    ?>
+
+            <form method="post" action="options.php">
+                <?php
+                settings_fields( 'wasgo_api_group' );
+                do_settings_sections( 'wasgo_api_group' );
+                ?>
+
+                <!-- CARD 1: Image Generation AI Providers -->
+                <div class="wasgo-admin-card">
+                    <h2 style="margin-top:0; font-size:18px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+                        <span class="dashicons dashicons-format-image" style="vertical-align:middle; margin-right:6px; color:#4f46e5;"></span>
+                        Image Generation AI Engine
+                    </h2>
                     <table class="form-table">
                         <tr>
-                            <th><label for="wasgo_gemini_api_key">Gemini API Key</label></th>
+                            <th scope="row"><label for="wasgo_image_provider">Active Image Provider</label></th>
                             <td>
-                                <input type="password" name="wasgo_gemini_api_key" id="wasgo_gemini_api_key" value="<?php echo esc_attr( WASGO_Settings::get_api_key() ); ?>">
-                                <p class="description">Enter your Gemini 3.1 Flash API Key for image processing.</p>
+                                <select name="wasgo_image_provider" id="wasgo_image_provider" style="min-width:320px;">
+                                    <option value="gemini" <?php selected( $active_provider, 'gemini' ); ?>>Google Gemini Vision (Direct preview)</option>
+                                    <option value="magnific" <?php selected( $active_provider, 'magnific' ); ?>>Magnific AI (Nano Banana Pro / imagen-nano-banana-2)</option>
+                                    <option value="higgsfield" <?php selected( $active_provider, 'higgsfield' ); ?>>Higgsfield AI (Studio packshot)</option>
+                                </select>
+                                <p class="description">Select the primary generative AI engine used for product packshots and gallery optimization.</p>
                             </td>
                         </tr>
                         <tr>
-                            <th><label for="wasgo_openai_api_key">OpenAI API Key (GPT-4o)</label></th>
+                            <th scope="row"><label for="wasgo_image_fallback_gemini">Automatic Gemini Fallback</label></th>
                             <td>
-                                <input type="password" name="wasgo_openai_api_key" id="wasgo_openai_api_key" value="<?php echo esc_attr( WASGO_Settings::get_openai_api_key() ); ?>">
-                                <p class="description">Enter your OpenAI API Key for content generation.</p>
+                                <input type="hidden" name="wasgo_image_fallback_gemini" value="0" />
+                                <label>
+                                    <input type="checkbox" name="wasgo_image_fallback_gemini" id="wasgo_image_fallback_gemini" value="1" <?php checked( $fallback_enabled, true ); ?> />
+                                    Enable automatic fallback to Google Gemini Vision if primary provider (Magnific/Higgsfield) encounters an error, timeout, or quota exhaustion.
+                                </label>
                             </td>
                         </tr>
+                    </table>
+
+                    <!-- Provider Specific Credentials Container -->
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:20px; margin-top:15px;">
+                        <!-- Gemini Section -->
+                        <div class="wasgo-provider-section" id="provider-sec-gemini" style="margin-bottom:20px;">
+                            <h3 style="margin-top:0; font-size:15px; color:#1e293b;">
+                                <span class="dashicons dashicons-google" style="vertical-align:middle; color:#ea4335;"></span> Google Gemini Vision Settings
+                            </h3>
+                            <table class="form-table" style="margin-top:0;">
+                                <tr>
+                                    <th scope="row" style="width:220px;"><label for="wasgo_gemini_api_key">Gemini API Key</label></th>
+                                    <td>
+                                        <input type="password" name="wasgo_gemini_api_key" id="wasgo_gemini_api_key" class="regular-text" value="<?php echo esc_attr( WASGO_Settings::get_api_key() ); ?>">
+                                        <p class="description">Required for Gemini direct generation or as the automatic fallback engine.</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="wasgo_gemini_model">Gemini Model</label></th>
+                                    <td>
+                                        <input type="text" name="wasgo_gemini_model" id="wasgo_gemini_model" class="regular-text" value="<?php echo esc_attr( WASGO_Settings::get_gemini_model() ); ?>" placeholder="gemini-3.1-flash-image-preview">
+                                        <p class="description">Default: <code>gemini-3.1-flash-image-preview</code></p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Magnific Section -->
+                        <div class="wasgo-provider-section" id="provider-sec-magnific" style="margin-bottom:20px; border-top:1px solid #e2e8f0; padding-top:15px;">
+                            <h3 style="margin-top:0; font-size:15px; color:#1e293b;">
+                                <span class="dashicons dashicons-admin-customizer" style="vertical-align:middle; color:#4f46e5;"></span> Magnific AI (Nano Banana Pro)
+                            </h3>
+                            <table class="form-table" style="margin-top:0;">
+                                <tr>
+                                    <th scope="row" style="width:220px;"><label for="wasgo_magnific_api_key">Magnific API Key</label></th>
+                                    <td>
+                                        <input type="password" name="wasgo_magnific_api_key" id="wasgo_magnific_api_key" class="regular-text" value="<?php echo esc_attr( WASGO_Settings::get_magnific_api_key() ); ?>">
+                                        <p class="description">Your Magnific MCP / API bearer token.</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="wasgo_magnific_model">Magnific Model</label></th>
+                                    <td>
+                                        <input type="text" name="wasgo_magnific_model" id="wasgo_magnific_model" class="regular-text" value="<?php echo esc_attr( WASGO_Settings::get_magnific_model() ); ?>" placeholder="imagen-nano-banana-2">
+                                        <p class="description">Default: <code>imagen-nano-banana-2</code> (Studio Packshot & Harmonizer mode).</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Higgsfield Section -->
+                        <div class="wasgo-provider-section" id="provider-sec-higgsfield" style="border-top:1px solid #e2e8f0; padding-top:15px;">
+                            <h3 style="margin-top:0; font-size:15px; color:#1e293b;">
+                                <span class="dashicons dashicons-art" style="vertical-align:middle; color:#06b6d4;"></span> Higgsfield AI Settings
+                            </h3>
+                            <table class="form-table" style="margin-top:0;">
+                                <tr>
+                                    <th scope="row" style="width:220px;"><label for="wasgo_higgsfield_api_key">Higgsfield API Key</label></th>
+                                    <td>
+                                        <input type="password" name="wasgo_higgsfield_api_key" id="wasgo_higgsfield_api_key" class="regular-text" value="<?php echo esc_attr( WASGO_Settings::get_higgsfield_api_key() ); ?>">
+                                        <p class="description">API credentials in <code>KEY_ID:KEY_SECRET</code> or Bearer format.</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="wasgo_higgsfield_model">Higgsfield Model</label></th>
+                                    <td>
+                                        <input type="text" name="wasgo_higgsfield_model" id="wasgo_higgsfield_model" class="regular-text" value="<?php echo esc_attr( WASGO_Settings::get_higgsfield_model() ); ?>" placeholder="higgsfield-ai/soul">
+                                        <p class="description">Default: <code>higgsfield-ai/soul</code></p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 2: Content Generation Engine -->
+                <div class="wasgo-admin-card">
+                    <h2 style="margin-top:0; font-size:18px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+                        <span class="dashicons dashicons-editor-paragraph" style="vertical-align:middle; margin-right:6px; color:#9333ea;"></span>
+                        Content & SEO Copywriting AI Engine
+                    </h2>
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row" style="width:220px;"><label for="wasgo_openai_api_key">OpenAI API Key (GPT-4o)</label></th>
+                            <td>
+                                <input type="password" name="wasgo_openai_api_key" id="wasgo_openai_api_key" class="regular-text" value="<?php echo esc_attr( WASGO_Settings::get_openai_api_key() ); ?>">
+                                <p class="description">Enter your OpenAI API Key for bulk product titles, descriptions, and category metadata generation.</p>
+                            </td>
                         </tr>
                     </table>
-                    <?php submit_button( 'Save API Settings' ); ?>
-                </form>
-            </div>
+                </div>
+
+                <?php submit_button( 'Save All Settings' ); ?>
+            </form>
         </div>
         <?php
     }

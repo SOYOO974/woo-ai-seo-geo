@@ -14,12 +14,6 @@ class WASGO_Image_Generator {
      */
     public static function process_product( $product_id, $force = false ) {
         
-        $api_key = WASGO_Settings::get_api_key();
-        if ( empty( $api_key ) ) {
-            WASGO_Logs::log_error( $product_id, "API Key is missing in settings." );
-            return "API Key missing.";
-        }
-
         $prompt_template = WASGO_Settings::get_prompt();
         if ( empty( $prompt_template ) ) {
             WASGO_Logs::log_error( $product_id, "Prompt is empty in settings." );
@@ -86,30 +80,16 @@ class WASGO_Image_Generator {
             return "Could not read source image.";
         }
 
-        $base64_image = base64_encode( $image_data_raw );
-
         $product_title = get_the_title( $product_id );
         $final_prompt = str_replace( '[PRODUCT_TITLE]', $product_title, $prompt_template );
         
-        $endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent';
+        $data = self::generate_image_with_provider_and_fallback(
+            $image_data_raw,
+            $mime_type,
+            $final_prompt,
+            [ 'product_id' => $product_id, 'title' => $product_title ]
+        );
 
-        $payload = [
-            'contents' => [
-                [
-                    'parts' => [
-                        [ 'text' => $final_prompt ],
-                        [
-                            'inline_data' => [
-                                'mime_type' => $mime_type,
-                                'data'      => $base64_image
-                            ]
-                        ]
-                    ]
-                ]
-            ]
-        ];
-
-        $data = self::get_ai_image_from_gemini( $api_key, $mime_type, $base64_image, $final_prompt );
         if ( is_wp_error( $data ) ) {
             WASGO_Logs::log_error( $product_id, $data->get_error_message() );
             return $data->get_error_message();
@@ -208,7 +188,8 @@ class WASGO_Image_Generator {
             }
         }
 
-        WASGO_Logs::log_success( $product_id, "Image successfully generated and optimized (Attachment #$attach_id).", 'image', [ 'attachment_id' => $attach_id, 'file' => basename( $file_path ) ] );
+        $provider_label = ! empty( $data['provider_name'] ) ? $data['provider_name'] : 'AI';
+        WASGO_Logs::log_success( $product_id, "Image successfully generated and optimized via {$provider_label} (Attachment #$attach_id).", 'image', [ 'attachment_id' => $attach_id, 'file' => basename( $file_path ), 'provider' => $provider_label ] );
 
         return true;
     }
@@ -222,10 +203,9 @@ class WASGO_Image_Generator {
             return;
         }
 
-        $api_key = WASGO_Settings::get_api_key();
         $prompt_template = WASGO_Settings::get_prompt();
-        if ( empty( $api_key ) || empty( $prompt_template ) ) {
-            WASGO_Logs::log_error( $product_id, "Gallery Process Aborted: API Key or Prompt missing." );
+        if ( empty( $prompt_template ) ) {
+            WASGO_Logs::log_error( $product_id, "Gallery Process Aborted: Prompt missing." );
             return;
         }
 
@@ -259,12 +239,17 @@ class WASGO_Image_Generator {
         }
 
         $mime_type = get_post_mime_type( $source_id ) ?: 'image/jpeg';
-        $base64_image = base64_encode( $image_data_raw );
 
         $product_title = get_the_title( $product_id );
         $final_prompt = str_replace( '[PRODUCT_TITLE]', $product_title, $prompt_template );
 
-        $data = self::get_ai_image_from_gemini( $api_key, $mime_type, $base64_image, $final_prompt );
+        $data = self::generate_image_with_provider_and_fallback(
+            $image_data_raw,
+            $mime_type,
+            $final_prompt,
+            [ 'product_id' => $product_id, 'attachment_id' => $attachment_id, 'title' => $product_title ]
+        );
+
         if ( is_wp_error( $data ) ) {
             WASGO_Logs::log_error( $product_id, "Gallery API Error: " . $data->get_error_message() );
             return;
@@ -373,81 +358,76 @@ class WASGO_Image_Generator {
             wp_delete_attachment( $source_id, true );
         }
 
-        WASGO_Logs::log_success( $product_id, "Gallery image successfully optimized (Attachment #$new_attach_id).", 'image', [ 'attachment_id' => $new_attach_id, 'file' => basename( $file_path ) ] );
+        $provider_label = ! empty( $data['provider_name'] ) ? $data['provider_name'] : 'AI';
+        WASGO_Logs::log_success( $product_id, "Gallery image successfully optimized via {$provider_label} (Attachment #$new_attach_id).", 'image', [ 'attachment_id' => $new_attach_id, 'file' => basename( $file_path ), 'provider' => $provider_label ] );
     }
 
     /**
-     * Shared helper to negotiate with Gemini API
+     * Dispatch image generation to configured provider with automatic Gemini fallback
+     *
+     * @param string $image_data_raw Raw binary source image
+     * @param string $mime_type      MIME type (image/jpeg, etc.)
+     * @param string $final_prompt   Substituted prompt string
+     * @param array  $context        Context array (product_id, title, etc.)
+     * @return array|WP_Error        [ 'base64' => string, 'mime' => string, 'raw' => string, 'provider_name' => string ] or WP_Error
      */
-    private static function get_ai_image_from_gemini( $api_key, $mime_type, $base64_image, $final_prompt ) {
-        $endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent';
-        
-        $payload = [
-            'contents' => [
-                [
-                    'parts' => [
-                        [ 'text' => $final_prompt ],
-                        [
-                            'inline_data' => [
-                                'mime_type' => $mime_type,
-                                'data'      => $base64_image
-                            ]
-                        ]
-                    ]
-                ]
-            ]
-        ];
+    public static function generate_image_with_provider_and_fallback( $image_data_raw, $mime_type, $final_prompt, $context = [] ) {
+        $active_slug = WASGO_Image_Provider_Factory::get_active_provider_slug();
+        $primary_provider = WASGO_Image_Provider_Factory::get_provider( $active_slug );
 
-        $ch = curl_init( $endpoint );
-        curl_setopt_array( $ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_HTTPHEADER     => [
-                'Content-Type: application/json',
-                'x-goog-api-key: ' . $api_key
-            ],
-            CURLOPT_POSTFIELDS     => wp_json_encode( $payload ),
-            CURLOPT_TIMEOUT        => 60,
-        ] );
+        $result = $primary_provider->generate( $image_data_raw, $mime_type, $final_prompt, $context );
 
-        $response_body = curl_exec( $ch );
-        $http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-        $curl_error = curl_error( $ch );
-        curl_close( $ch );
-
-        if ( $response_body === false ) {
-            return new WP_Error( 'curl_error', "cURL Error: " . $curl_error );
+        if ( ! is_wp_error( $result ) ) {
+            $result['provider_name'] = $primary_provider->get_name();
+            return $result;
         }
 
-        if ( $http_code !== 200 ) {
-            $err_json = json_decode( $response_body, true );
-            $err_msg = isset( $err_json['error']['message'] ) ? $err_json['error']['message'] : "HTTP Code $http_code";
-            return new WP_Error( 'api_error', "API Error ($http_code): " . $err_msg );
-        }
+        // Check if fallback to Gemini is eligible
+        $can_fallback = ( $active_slug !== 'gemini' ) && WASGO_Settings::should_fallback_to_gemini();
 
-        $data = json_decode( $response_body, true );
-        $generated_base64 = '';
-        $generated_mime = 'image/png';
+        if ( $can_fallback ) {
+            $gemini_key = WASGO_Settings::get_api_key();
+            if ( ! empty( $gemini_key ) ) {
+                $pid = ! empty( $context['product_id'] ) ? $context['product_id'] : 0;
+                WASGO_Logs::log(
+                    sprintf(
+                        "Primary image provider '%s' failed: %s. Initiating automatic fallback to Google Gemini Vision...",
+                        $primary_provider->get_name(),
+                        $result->get_error_message()
+                    ),
+                    'warning',
+                    [ 'product_id' => $pid, 'primary_error' => $result->get_error_message() ]
+                );
 
-        if ( ! empty( $data['candidates'][0]['content']['parts'] ) ) {
-            foreach ( $data['candidates'][0]['content']['parts'] as $part ) {
-                if ( ! empty( $part['inlineData']['data'] ) ) {
-                    $generated_base64 = $part['inlineData']['data'];
-                    if( isset( $part['inlineData']['mimeType'] ) ) $generated_mime = $part['inlineData']['mimeType'];
-                    break;
+                $gemini_provider = WASGO_Image_Provider_Factory::get_provider( 'gemini' );
+                $fallback_res = $gemini_provider->generate( $image_data_raw, $mime_type, $final_prompt, $context );
+
+                if ( ! is_wp_error( $fallback_res ) ) {
+                    $fallback_res['provider_name'] = 'Google Gemini Vision (Fallback)';
+                    $fallback_res['fallback_used'] = true;
+                    return $fallback_res;
                 }
-                if ( ! empty( $part['inline_data']['data'] ) ) {
-                    $generated_base64 = $part['inline_data']['data'];
-                    if( isset( $part['inline_data']['mime_type'] ) ) $generated_mime = $part['inline_data']['mime_type'];
-                    break;
-                }
+
+                return new WP_Error(
+                    'all_providers_failed',
+                    sprintf(
+                        "[%s Failed]: %s | [Gemini Fallback Failed]: %s",
+                        $primary_provider->get_name(),
+                        $result->get_error_message(),
+                        $fallback_res->get_error_message()
+                    )
+                );
             }
         }
 
-        return [
-            'base64' => $generated_base64,
-            'mime'   => $generated_mime,
-            'raw'    => $response_body
-        ];
+        return $result;
+    }
+
+    /**
+     * Backward compatible helper to negotiate with Gemini API (delegates to WASGO_Provider_Gemini)
+     */
+    private static function get_ai_image_from_gemini( $api_key, $mime_type, $base64_image, $final_prompt ) {
+        $gemini = new WASGO_Provider_Gemini();
+        return $gemini->generate( base64_decode( $base64_image ), $mime_type, $final_prompt );
     }
 }

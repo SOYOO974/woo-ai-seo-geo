@@ -2,8 +2,8 @@
 /**
  * Plugin Name: WooCommerce AI SEO & GEO Optimization
  * Plugin URI:  https://github.com/SOYOO974/woo-ai-seo-geo.git
- * Description: Integrates Gemini 3.1 Flash Image API to regenerate product images and perform bulk optimizations.
- * Version: 4.4
+ * Description: Multi-provider AI image generation (Magnific Nano Banana Pro, Higgsfield, Gemini Vision) with auto-fallback and bulk SEO content optimizations.
+ * Version: 4.5
  * Author:      Soyoo.re
  * Author URI:  https://www.soyoo.re/
  * Text Domain: wasgo
@@ -31,7 +31,7 @@ if ( defined( 'WASGO_GITHUB_ACCESS_TOKEN' ) && WASGO_GITHUB_ACCESS_TOKEN ) {
     $myUpdateChecker->setAuthentication( WASGO_GITHUB_ACCESS_TOKEN );
 }
 
-define( 'WASGO_VERSION', '4.4' );
+define( 'WASGO_VERSION', '4.5' );
 define( 'WASGO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WASGO_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -48,6 +48,14 @@ function wasgo_init_plugin() {
     // Include core classes
     require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-settings.php';
     require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-logs.php';
+    
+    // Include Image AI Providers
+    require_once WASGO_PLUGIN_DIR . 'includes/providers/interface-wasgo-image-provider.php';
+    require_once WASGO_PLUGIN_DIR . 'includes/providers/class-wasgo-provider-gemini.php';
+    require_once WASGO_PLUGIN_DIR . 'includes/providers/class-wasgo-provider-magnific.php';
+    require_once WASGO_PLUGIN_DIR . 'includes/providers/class-wasgo-provider-higgsfield.php';
+    require_once WASGO_PLUGIN_DIR . 'includes/providers/class-wasgo-image-provider-factory.php';
+
     require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-image-generator.php';
     require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-batch-processor.php';
     require_once WASGO_PLUGIN_DIR . 'includes/class-wasgo-ajax.php';

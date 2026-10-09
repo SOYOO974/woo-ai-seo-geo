@@ -16,7 +16,16 @@ class WASGO_Settings {
     public function register_settings() {
         // General API Settings
         register_setting( 'wasgo_api_group', 'wasgo_gemini_api_key', [ 'sanitize_callback' => 'sanitize_text_field' ] );
+        register_setting( 'wasgo_api_group', 'wasgo_gemini_model', [ 'sanitize_callback' => 'sanitize_text_field' ] );
         register_setting( 'wasgo_api_group', 'wasgo_openai_api_key', [ 'sanitize_callback' => 'sanitize_text_field' ] );
+
+        // Image AI Provider Settings
+        register_setting( 'wasgo_api_group', 'wasgo_image_provider', [ 'sanitize_callback' => 'sanitize_text_field' ] );
+        register_setting( 'wasgo_api_group', 'wasgo_image_fallback_gemini', [ 'sanitize_callback' => 'absint' ] );
+        register_setting( 'wasgo_api_group', 'wasgo_magnific_api_key', [ 'sanitize_callback' => 'sanitize_text_field' ] );
+        register_setting( 'wasgo_api_group', 'wasgo_magnific_model', [ 'sanitize_callback' => 'sanitize_text_field' ] );
+        register_setting( 'wasgo_api_group', 'wasgo_higgsfield_api_key', [ 'sanitize_callback' => 'sanitize_text_field' ] );
+        register_setting( 'wasgo_api_group', 'wasgo_higgsfield_model', [ 'sanitize_callback' => 'sanitize_text_field' ] );
 
         // Enhance Image Prompts
         register_setting( 'wasgo_prompt_group', 'wasgo_ai_prompt', [ 'sanitize_callback' => 'sanitize_textarea_field' ] );
@@ -66,6 +75,34 @@ class WASGO_Settings {
 
     public static function get_api_key() {
         return get_option( 'wasgo_gemini_api_key', '' );
+    }
+
+    public static function get_gemini_model() {
+        return get_option( 'wasgo_gemini_model', 'gemini-3.1-flash-image-preview' );
+    }
+
+    public static function get_image_provider() {
+        return get_option( 'wasgo_image_provider', 'gemini' );
+    }
+
+    public static function should_fallback_to_gemini() {
+        return (bool) get_option( 'wasgo_image_fallback_gemini', 1 );
+    }
+
+    public static function get_magnific_api_key() {
+        return get_option( 'wasgo_magnific_api_key', '' );
+    }
+
+    public static function get_magnific_model() {
+        return get_option( 'wasgo_magnific_model', 'imagen-nano-banana-2' );
+    }
+
+    public static function get_higgsfield_api_key() {
+        return get_option( 'wasgo_higgsfield_api_key', '' );
+    }
+
+    public static function get_higgsfield_model() {
+        return get_option( 'wasgo_higgsfield_model', 'higgsfield-ai/soul' );
     }
 
     public static function get_openai_api_key() {

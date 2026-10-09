@@ -1,17 +1,20 @@
 # WooCommerce AI SEO & GEO Optimization
 
-[![Version](https://img.shields.io/badge/version-4.4-blue.svg)](https://github.com/SOYOO974/woo-ai-seo-geo)
+[![Version](https://img.shields.io/badge/version-4.5-blue.svg)](https://github.com/SOYOO974/woo-ai-seo-geo)
 [![WooCommerce](https://img.shields.io/badge/WooCommerce-Compatible-purple.svg)](https://woocommerce.com/)
 [![PHP](https://img.shields.io/badge/PHP-%3E%3D8.0-777bb4.svg)](https://www.php.net/)
 
-Extension in-house mutualisée développée par **[SOYOO](https://www.soyoo.re/)** pour optimiser automatiquement les images, les métadonnées SEO et le contenu des boutiques WooCommerce à l'aide de l'intelligence artificielle (Google Gemini & OpenAI GPT-4o).
+Extension in-house mutualisée développée par **[SOYOO](https://www.soyoo.re/)** pour optimiser automatiquement les images, les métadonnées SEO et le contenu des boutiques WooCommerce à l'aide de l'intelligence artificielle multi-fournisseurs (**Magnific AI Nano Banana Pro**, **Higgsfield AI**, **Google Gemini Vision** et **OpenAI GPT-4o**).
 
 ---
 
 ## 🚀 Fonctionnalités Clés
 
-- **Amélioration Visuelle par IA (Gemini Vision)** :
-  - Régénération haute fidélité des packshots produits et des images de galeries.
+- **Amélioration Visuelle Multi-Providers (Magnific, Higgsfield, Gemini)** :
+  - **Magnific AI** : Génération studio packshot via **Nano Banana Pro** (`imagen-nano-banana-2`) sans blocage de copyright ni dézoom, avec upload binaire presigné S3 et polling `creations_wait`.
+  - **Higgsfield AI** : Intégration de modèles studio packshots haute fidélité (`higgsfield-ai/soul`) avec authentification `KEY_ID:KEY_SECRET` ou Bearer.
+  - **Google Gemini Vision** : Traitement direct via l'API officielle v1beta (`gemini-3.1-flash-image-preview` configurable).
+  - **Repli Automatique (Auto-Fallback Gemini)** : Bascule transparente et journalisée vers Google Gemini en cas de timeout, quota dépassé ou indisponibilité du fournisseur principal.
   - Conversion et compression automatique en WebP (`wp_get_image_editor`).
   - Système de sauvegarde avec restauration en 1 clic de l'original.
   - Verrou de synchronisation ERP (`prevent_ebp_image_sync`).
@@ -45,8 +48,12 @@ Extension in-house mutualisée développée par **[SOYOO](https://www.soyoo.re/)
 - Action Scheduler (fourni nativement avec WooCommerce)
 - PHP 8.0 ou supérieur
 - Clés API :
-  - Google Gemini API Key (pour l'optimisation d'images)
-  - OpenAI API Key (pour la rédaction et la validation)
+  - Fournisseurs Images (au choix avec repli Gemini recommandé) :
+    - Magnific API Key / Token (recommandé pour packshots Nano Banana Pro)
+    - Higgsfield API Key (`KEY_ID:KEY_SECRET` ou token)
+    - Google Gemini API Key (traitement direct ou repli automatique de secours)
+  - Fournisseur Contenu SEO :
+    - OpenAI API Key (pour la rédaction et validation de descriptions/métadonnées)
 
 ---
 
