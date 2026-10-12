@@ -12,6 +12,20 @@ class WASGO_Admin_Menu {
     public function __construct() {
         add_action( 'admin_menu', [ $this, 'register_menus' ] );
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_scripts' ] );
+        if ( defined( 'WASGO_PLUGIN_FILE' ) ) {
+            add_filter( 'plugin_action_links_' . plugin_basename( WASGO_PLUGIN_FILE ), [ $this, 'add_plugin_action_links' ] );
+        }
+    }
+
+    /**
+     * Add direct quick links under plugin name on the plugins list page
+     */
+    public function add_plugin_action_links( $links ) {
+        $custom_links = [
+            '<a href="' . esc_url( admin_url( 'admin.php?page=wasgo-settings' ) ) . '" style="font-weight:600; color:#2271b1;">' . esc_html__( 'Réglages', 'wasgo' ) . '</a>',
+            '<a href="' . esc_url( admin_url( 'admin.php?page=wasgo-content-generation' ) ) . '">' . esc_html__( 'Génération Contenu', 'wasgo' ) . '</a>',
+        ];
+        return array_merge( $custom_links, (array) $links );
     }
 
     public function register_menus() {
@@ -306,10 +320,22 @@ class WASGO_Admin_Menu {
                     </h2>
                     <table class="form-table">
                         <tr>
-                            <th scope="row" style="width:220px;"><label for="wasgo_openai_api_key">OpenAI API Key (GPT-4o)</label></th>
+                            <th scope="row" style="width:220px;"><label for="wasgo_openai_api_key">OpenAI API Key</label></th>
                             <td>
                                 <input type="password" name="wasgo_openai_api_key" id="wasgo_openai_api_key" class="regular-text" value="<?php echo esc_attr( WASGO_Settings::get_openai_api_key() ); ?>">
                                 <p class="description">Enter your OpenAI API Key for bulk product titles, descriptions, and category metadata generation.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="wasgo_openai_model">OpenAI Model</label></th>
+                            <td>
+                                <?php $selected_model = WASGO_Settings::get_openai_model(); ?>
+                                <select name="wasgo_openai_model" id="wasgo_openai_model" style="min-width:280px;">
+                                    <option value="gpt-4o-mini" <?php selected( $selected_model, 'gpt-4o-mini' ); ?>>gpt-4o-mini (Recommandé — Ultra rapide & ~17x plus économique)</option>
+                                    <option value="gpt-4o-2024-08-06" <?php selected( $selected_model, 'gpt-4o-2024-08-06' ); ?>>gpt-4o-2024-08-06 (Standard GPT-4o)</option>
+                                    <option value="gpt-4o" <?php selected( $selected_model, 'gpt-4o' ); ?>>gpt-4o (Dernière version)</option>
+                                </select>
+                                <p class="description">Modèle LLM utilisé pour la rédaction des points forts, descriptions et balises SEO, ainsi que pour le validateur anti-hallucination. <code>gpt-4o-mini</code> supporte nativement la vision multimodale et les JSON Schemas stricts tout en divisant les coûts par 17.</p>
                             </td>
                         </tr>
                     </table>

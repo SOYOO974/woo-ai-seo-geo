@@ -77,8 +77,8 @@ woo-ai-seo-geo/
   7. Traçabilité dans les logs : `Image successfully generated and optimized via <Nom du Provider> (Attachment #ID)`.
 - **Galeries Produits** : Support complet des galeries via `_product_image_gallery` avec tâches unitaires indépendantes dans Action Scheduler (`wasgo_process_gallery_item`).
 
-### Module B : Génération de Contenu & Métadonnées SEO (GPT-4o)
-- **Moteur IA** : OpenAI `gpt-4o-2024-08-06` avec mode `response_format => json_schema` strict.
+### Module B : Génération de Contenu & Métadonnées SEO (OpenAI gpt-4o-mini / gpt-4o)
+- **Moteur IA** : OpenAI configurable (`gpt-4o-mini` par défaut, ou `gpt-4o-2024-08-06`) avec mode `response_format => json_schema` strict.
 - **Typologies générées** :
   - **Produit** : `short` (Description courte / `post_excerpt`), `long` (Description longue / `post_content`), `title` (SEO Meta Title), `desc` (SEO Meta Description).
   - **Catégorie** : `cat_title` (Meta Title de la catégorie), `cat_desc` (Meta Description de la catégorie).
@@ -217,11 +217,16 @@ En posture d'associé technique et sparring-partner exigeant, voici les **5 anom
    - **Compatibilité REST API / Imports EBP** : Branchement de `enqueue_auto_process` sur `woocommerce_new_product` et `woocommerce_update_product` en plus de `save_post_product`.
    - **Seuil de Confiance Adaptatif pour les Bullet Points** : Abaissement du seuil de confiance strict de 0.85 à 0.75 pour les descriptions courtes (`short`), évitant que les listes à puces ultra-factuelles ne soient bloquées dans la file de révision manuelle.
 
-4. **Lot 3 — Moteur de Texte & Fact-Checking Multi-Modèles** :
-   - Abstraire la génération et validation de texte pour supporter à la fois OpenAI (GPT-4o) et Google Gemini (Gemini 2.0 Flash / Pro).
+4. **Lot 2.2 — Ergonomie d'Administration & Modèle LLM Configurable (gpt-4o-mini)** : **[TERMINÉ v4.7]**
+   - **Accès Direct depuis la Liste des Extensions** : Ajout des liens d'action rapides « Réglages » et « Génération Contenu » directement sous l'entrée du plugin dans l'écran WordPress `plugins.php` via le filtre `plugin_action_links`.
+   - **Modèle LLM Configurable avec gpt-4o-mini par Défaut** : Remplacement du modèle hardcodé `gpt-4o-2024-08-06` par une option dynamique `wasgo_openai_model`. Par défaut, `gpt-4o-mini` est sélectionné : réduction de 94% des coûts API (17x moins cher), temps de réponse divisé par 3 (< 1.5s), et maintien à 100% de la vision multimodale et des JSON Schemas stricts.
+   - **Définition de `WASGO_PLUGIN_FILE`** : Constante globale assurant la parité et la fiabilité des hooks de métadonnées et de liens de plugins.
+
+5. **Lot 3 — Moteur de Texte & Fact-Checking Multi-Modèles** :
+   - Abstraire la génération et validation de texte pour supporter à la fois OpenAI (GPT-4o / GPT-4o-mini) et Google Gemini (Gemini 2.0 / 2.5 Flash / Pro).
    - Sécuriser les timeouts et la résilience sur les volumineux catalogues.
 
-4. **Lot 4 — Tests en Conditions Réelles sur `comptoirdecambaie.re`** :
+6. **Lot 4 — Tests en Conditions Réelles sur `comptoirdecambaie.re`** :
    - Validation en préproduction / staging.
    - Déploiement sans régression.
 

@@ -18,6 +18,7 @@ class WASGO_Settings {
         register_setting( 'wasgo_api_group', 'wasgo_gemini_api_key', [ 'sanitize_callback' => 'sanitize_text_field' ] );
         register_setting( 'wasgo_api_group', 'wasgo_gemini_model', [ 'sanitize_callback' => 'sanitize_text_field' ] );
         register_setting( 'wasgo_api_group', 'wasgo_openai_api_key', [ 'sanitize_callback' => 'sanitize_text_field' ] );
+        register_setting( 'wasgo_api_group', 'wasgo_openai_model', [ 'sanitize_callback' => 'sanitize_text_field' ] );
 
         // Image AI Provider Settings
         register_setting( 'wasgo_api_group', 'wasgo_image_provider', [ 'sanitize_callback' => 'sanitize_text_field' ] );
@@ -107,6 +108,10 @@ class WASGO_Settings {
 
     public static function get_openai_api_key() {
         return get_option( 'wasgo_openai_api_key', '' );
+    }
+
+    public static function get_openai_model() {
+        return get_option( 'wasgo_openai_model', 'gpt-4o-mini' );
     }
 
     public static function get_prompt() {

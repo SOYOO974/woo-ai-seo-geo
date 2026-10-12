@@ -155,7 +155,7 @@ class WASGO_Content_Generator {
                 'Content-Type'  => 'application/json'
             ],
             'body'    => wp_json_encode( [
-                'model'           => 'gpt-4o-2024-08-06',
+                'model'           => WASGO_Settings::get_openai_model(),
                 'messages'        => $messages,
                 'response_format' => [ 
                     'type'        => 'json_schema',
@@ -359,7 +359,7 @@ class WASGO_Content_Generator {
                 'Content-Type'  => 'application/json'
             ],
             'body'    => wp_json_encode( [
-                'model'           => 'gpt-4o-2024-08-06',
+                'model'           => WASGO_Settings::get_openai_model(),
                 'messages'        => $messages,
                 'response_format' => [ 
                     'type'        => 'json_schema',

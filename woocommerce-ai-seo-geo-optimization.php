@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce AI SEO & GEO Optimization
  * Plugin URI:  https://github.com/SOYOO974/woo-ai-seo-geo.git
  * Description: Multi-provider AI image generation (Magnific Nano Banana Pro, Higgsfield, Gemini Vision) with auto-fallback and bulk SEO content optimizations.
- * Version: 4.6
+ * Version: 4.7
  * Author:      Soyoo.re
  * Author URI:  https://www.soyoo.re/
  * Text Domain: wasgo
@@ -39,7 +39,8 @@ add_action( 'before_woocommerce_init', function () {
     }
 } );
 
-define( 'WASGO_VERSION', '4.6' );
+define( 'WASGO_VERSION', '4.7' );
+define( 'WASGO_PLUGIN_FILE', __FILE__ );
 define( 'WASGO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WASGO_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
