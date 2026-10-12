@@ -217,9 +217,9 @@ En posture d'associé technique et sparring-partner exigeant, voici les **5 anom
    - **Compatibilité REST API / Imports EBP** : Branchement de `enqueue_auto_process` sur `woocommerce_new_product` et `woocommerce_update_product` en plus de `save_post_product`.
    - **Seuil de Confiance Adaptatif pour les Bullet Points** : Abaissement du seuil de confiance strict de 0.85 à 0.75 pour les descriptions courtes (`short`), évitant que les listes à puces ultra-factuelles ne soient bloquées dans la file de révision manuelle.
 
-4. **Lot 2.2 — Ergonomie d'Administration & Modèle LLM Configurable (gpt-4o-mini)** : **[TERMINÉ v4.7]**
+4. **Lot 2.2 — Ergonomie d'Administration & Modèle LLM Configurable (Maintien gpt-4o de référence)** : **[TERMINÉ v4.8]**
    - **Accès Direct depuis la Liste des Extensions** : Ajout des liens d'action rapides « Réglages » et « Génération Contenu » directement sous l'entrée du plugin dans l'écran WordPress `plugins.php` via le filtre `plugin_action_links`.
-   - **Modèle LLM Configurable avec gpt-4o-mini par Défaut** : Remplacement du modèle hardcodé `gpt-4o-2024-08-06` par une option dynamique `wasgo_openai_model`. Par défaut, `gpt-4o-mini` est sélectionné : réduction de 94% des coûts API (17x moins cher), temps de réponse divisé par 3 (< 1.5s), et maintien à 100% de la vision multimodale et des JSON Schemas stricts.
+   - **Modèle LLM Configurable & Standard de Référence** : Remplacement du modèle hardcodé par une option dynamique `wasgo_openai_model`. Suite au benchmark comparatif sur 3 produits réels du Comptoir de Cambaie, **`gpt-4o-2024-08-06` est maintenu par défaut** pour garantir une régularité absolue sur les bullet points (là où `gpt-4o-mini` a sauté les puces sur les attributs concis).
    - **Définition de `WASGO_PLUGIN_FILE`** : Constante globale assurant la parité et la fiabilité des hooks de métadonnées et de liens de plugins.
 
 5. **Lot 3 — Moteur de Texte & Fact-Checking Multi-Modèles** :

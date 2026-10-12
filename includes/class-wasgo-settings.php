@@ -111,7 +111,7 @@ class WASGO_Settings {
     }
 
     public static function get_openai_model() {
-        return get_option( 'wasgo_openai_model', 'gpt-4o-mini' );
+        return get_option( 'wasgo_openai_model', 'gpt-4o-2024-08-06' );
     }
 
     public static function get_prompt() {

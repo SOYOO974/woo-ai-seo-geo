@@ -331,11 +331,11 @@ class WASGO_Admin_Menu {
                             <td>
                                 <?php $selected_model = WASGO_Settings::get_openai_model(); ?>
                                 <select name="wasgo_openai_model" id="wasgo_openai_model" style="min-width:280px;">
-                                    <option value="gpt-4o-mini" <?php selected( $selected_model, 'gpt-4o-mini' ); ?>>gpt-4o-mini (Recommandé — Ultra rapide & ~17x plus économique)</option>
-                                    <option value="gpt-4o-2024-08-06" <?php selected( $selected_model, 'gpt-4o-2024-08-06' ); ?>>gpt-4o-2024-08-06 (Standard GPT-4o)</option>
+                                    <option value="gpt-4o-2024-08-06" <?php selected( $selected_model, 'gpt-4o-2024-08-06' ); ?>>gpt-4o-2024-08-06 (Recommandé — Standard de référence haute fidélité)</option>
+                                    <option value="gpt-4o-mini" <?php selected( $selected_model, 'gpt-4o-mini' ); ?>>gpt-4o-mini (Économique — Ultra rapide)</option>
                                     <option value="gpt-4o" <?php selected( $selected_model, 'gpt-4o' ); ?>>gpt-4o (Dernière version)</option>
                                 </select>
-                                <p class="description">Modèle LLM utilisé pour la rédaction des points forts, descriptions et balises SEO, ainsi que pour le validateur anti-hallucination. <code>gpt-4o-mini</code> supporte nativement la vision multimodale et les JSON Schemas stricts tout en divisant les coûts par 17.</p>
+                                <p class="description">Modèle LLM utilisé pour la rédaction des points forts, descriptions et balises SEO, ainsi que pour le validateur anti-hallucination. <code>gpt-4o-2024-08-06</code> garantit un respect strict et systématique des bullet points techniques et du style e-commerce.</p>
                             </td>
                         </tr>
                     </table>
