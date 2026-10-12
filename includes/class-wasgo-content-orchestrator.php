@@ -71,7 +71,9 @@ class WASGO_Content_Orchestrator {
                     break;
                 }
 
-                if ( $validation['status'] === 'pass' && $validation['confidence_score'] >= 0.85 ) {
+                $min_confidence = apply_filters( 'wasgo_content_min_confidence', ( $type === 'short' ? 0.75 : 0.85 ), $type, $product_id );
+
+                if ( $validation['status'] === 'pass' && $validation['confidence_score'] >= $min_confidence ) {
                     self::save_product_content( $product_id, $type, $content_to_verify );
                     $results_summary[$type] = 'success';
                     $passed = true;
@@ -143,12 +145,15 @@ class WASGO_Content_Orchestrator {
         switch ( $type ) {
             case 'short':
                 wp_update_post( [ 'ID' => $product_id, 'post_excerpt' => $content ] );
+                update_post_meta( $product_id, 'prevent_ebp_description_sync', '1' );
                 break;
             case 'long':
                 wp_update_post( [ 'ID' => $product_id, 'post_content' => $content ] );
+                update_post_meta( $product_id, 'prevent_ebp_description_sync', '1' );
                 break;
             case 'title':
                 self::update_seo_field( $product_id, 'title', $content );
+                update_post_meta( $product_id, 'prevent_ebp_title_sync', '1' );
                 break;
             case 'desc':
                 self::update_seo_field( $product_id, 'description', $content );
@@ -162,6 +167,7 @@ class WASGO_Content_Orchestrator {
             $ai_fields[] = $type;
             update_post_meta( $product_id, '_wasgo_ai_fields', $ai_fields );
         }
+        update_post_meta( $product_id, "_wasgo_ai_generated_{$type}", current_time( 'mysql' ) );
 
 
         // Remove from review queue if it was there

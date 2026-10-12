@@ -210,7 +210,14 @@ En posture d'associé technique et sparring-partner exigeant, voici les **5 anom
    - Mécanisme de repli automatique (**Auto-Fallback Gemini**) en cas d'erreur ou d'épuisement de quota du provider principal.
    - Refonte moderne de l'écran des réglages (`render_settings_page`) avec cartes dédiées par provider, sélecteur actif et toggle de repli.
 
-3. **Lot 3 — Moteur de Texte & Fact-Checking Multi-Modèles** :
+3. **Lot 2.1 — Pipeline Automatisé Contenu/Image, Bouclier EBP & Filtrage Intelligent** : **[TERMINÉ v4.6]**
+   - **Chaînage Automatique Post-Image** : Dès qu'une image de produit est générée et assignée par `WASGO_Image_Generator`, la génération de contenu textuel (`wasgo_process_single_content`) est automatiquement enclenchée en arrière-plan si `wasgo_content_auto_process` est actif. Résout l'impasse où le générateur de contenu échouait faute d'image (`missing_image`).
+   - **Filtrage Intelligent des Champs Vides** : En mode automatique unitaire, WASGO n'optimise que les champs réellement vides (`post_excerpt` vide pour la description courte, `post_content` vide ou simple copie du titre pour la description longue), préservant les rédactions manuelles et réduisant la consommation de tokens OpenAI.
+   - **Protection Anti-Écrasement ERP / EBP** : Enregistrement automatique des drapeaux `prevent_ebp_description_sync = '1'` et `prevent_ebp_title_sync = '1'` lors de la sauvegarde du contenu validé par l'IA.
+   - **Compatibilité REST API / Imports EBP** : Branchement de `enqueue_auto_process` sur `woocommerce_new_product` et `woocommerce_update_product` en plus de `save_post_product`.
+   - **Seuil de Confiance Adaptatif pour les Bullet Points** : Abaissement du seuil de confiance strict de 0.85 à 0.75 pour les descriptions courtes (`short`), évitant que les listes à puces ultra-factuelles ne soient bloquées dans la file de révision manuelle.
+
+4. **Lot 3 — Moteur de Texte & Fact-Checking Multi-Modèles** :
    - Abstraire la génération et validation de texte pour supporter à la fois OpenAI (GPT-4o) et Google Gemini (Gemini 2.0 Flash / Pro).
    - Sécuriser les timeouts et la résilience sur les volumineux catalogues.
 

@@ -13,6 +13,8 @@ class WASGO_Content_Batch_Processor {
         add_action( 'wasgo_process_content_batch', [ $this, 'process_batch' ], 10, 3 );
         add_action( 'wasgo_process_single_content', [ $this, 'process_single_content' ], 10, 2 );
         add_action( 'save_post_product', [ $this, 'enqueue_auto_process' ], 20, 3 );
+        add_action( 'woocommerce_new_product', [ $this, 'enqueue_auto_process' ], 20, 1 );
+        add_action( 'woocommerce_update_product', [ $this, 'enqueue_auto_process' ], 20, 1 );
     }
 
     /**
@@ -281,10 +283,16 @@ class WASGO_Content_Batch_Processor {
     /**
      * Auto-process hook
      */
-    public function enqueue_auto_process( $post_id, $post, $update ) {
+    public function enqueue_auto_process( $post_id, $post = null, $update = null ) {
         if ( wp_is_post_revision( $post_id ) ) return;
         if ( ! get_option( 'wasgo_content_auto_process', 0 ) ) return;
-        if ( $post->post_status !== 'publish' ) return;
+
+        if ( ! $post ) {
+            $post = get_post( $post_id );
+        }
+        if ( ! $post || $post->post_type !== 'product' || $post->post_status !== 'publish' ) {
+            return;
+        }
 
         // 1. Prevent loop if we are currently mid-process for this product
         if ( get_post_meta( $post_id, '_wasgo_processing_content', true ) ) {
@@ -293,18 +301,61 @@ class WASGO_Content_Batch_Processor {
 
         // 2. Prevent duplicate scheduling if an action is already pending
         $args = [ $post_id, ['short', 'long', 'title', 'desc'] ];
-        if ( as_has_scheduled_action( 'wasgo_process_single_content', $args, 'wasgo-content' ) ) {
+        if ( function_exists( 'as_has_scheduled_action' ) && as_has_scheduled_action( 'wasgo_process_single_content', $args, 'wasgo-content' ) ) {
             return;
         }
 
-        as_enqueue_async_action( 'wasgo_process_single_content', $args, 'wasgo-content' );
+        if ( function_exists( 'as_enqueue_async_action' ) ) {
+            as_enqueue_async_action( 'wasgo_process_single_content', $args, 'wasgo-content' );
+        }
     }
 
     public function process_single_content( $product_id, $types ) {
+        $post = get_post( $product_id );
+        if ( ! $post || $post->post_type !== 'product' || $post->post_status !== 'publish' ) {
+            return;
+        }
+
+        // If an image is strictly required but not yet available, defer or skip gracefully
+        if ( get_option( 'wasgo_content_image_required', 0 ) && ! get_post_thumbnail_id( $product_id ) ) {
+            return;
+        }
+
         // Set lock
         update_post_meta( $product_id, '_wasgo_processing_content', time() );
         
-        WASGO_Content_Orchestrator::process_product( $product_id, $types );
+        // Smart filtering: only process fields that are actually empty
+        $filtered_types = [];
+        foreach ( (array) $types as $type ) {
+            $val = '';
+            if ( $type === 'short' ) {
+                $val = get_post_field( 'post_excerpt', $product_id );
+            } elseif ( $type === 'long' ) {
+                $val = get_post_field( 'post_content', $product_id );
+                // EBP connector copies title into post_content verbatim if empty
+                if ( trim( (string) $val ) === trim( (string) $post->post_title ) ) {
+                    $val = '';
+                }
+            } elseif ( $type === 'title' ) {
+                $val = get_post_meta( $product_id, '_yoast_wpseo_title', true ) ?: 
+                       get_post_meta( $product_id, 'rank_math_title', true ) ?: 
+                       get_post_meta( $product_id, '_genesis_title', true ) ?:
+                       get_post_meta( $product_id, '_wasgo_ai_title', true );
+            } elseif ( $type === 'desc' ) {
+                $val = get_post_meta( $product_id, '_yoast_wpseo_metadesc', true ) ?: 
+                       get_post_meta( $product_id, 'rank_math_description', true ) ?: 
+                       get_post_meta( $product_id, '_genesis_description', true ) ?:
+                       get_post_meta( $product_id, '_wasgo_ai_description', true );
+            }
+
+            if ( empty( $val ) ) {
+                $filtered_types[] = $type;
+            }
+        }
+
+        if ( ! empty( $filtered_types ) ) {
+            WASGO_Content_Orchestrator::process_product( $product_id, $filtered_types );
+        }
         
         // Release lock
         delete_post_meta( $product_id, '_wasgo_processing_content' );

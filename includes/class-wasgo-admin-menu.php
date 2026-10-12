@@ -872,7 +872,7 @@ class WASGO_Admin_Menu {
                         <th><label for="wasgo_content_auto_process">Auto-Process New Products</label></th>
                         <td>
                             <input type="checkbox" name="wasgo_content_auto_process" id="wasgo_content_auto_process" value="1" <?php checked( 1, get_option( 'wasgo_content_auto_process', 0 ) ); ?> />
-                            <span class="description">Automatically generate content for new products upon creation/publish.</span>
+                            <span class="description">Automatically generate content for new products upon publication or after AI image generation (only missing/empty fields are processed).</span>
                         </td>
                     </tr>
                     <tr>

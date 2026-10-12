@@ -1,6 +1,6 @@
 # WooCommerce AI SEO & GEO Optimization
 
-[![Version](https://img.shields.io/badge/version-4.5-blue.svg)](https://github.com/SOYOO974/woo-ai-seo-geo)
+[![Version](https://img.shields.io/badge/version-4.6-blue.svg)](https://github.com/SOYOO974/woo-ai-seo-geo)
 [![WooCommerce](https://img.shields.io/badge/WooCommerce-Compatible-purple.svg)](https://woocommerce.com/)
 [![PHP](https://img.shields.io/badge/PHP-%3E%3D8.0-777bb4.svg)](https://www.php.net/)
 

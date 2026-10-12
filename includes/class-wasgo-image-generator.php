@@ -177,6 +177,15 @@ class WASGO_Image_Generator {
         set_post_thumbnail( $product_id, $attach_id );
         update_post_meta( $product_id, 'prevent_ebp_image_sync', '1' );
 
+        // Auto-trigger content generation if enabled and not already running
+        if ( get_option( 'wasgo_content_auto_process', 0 ) && function_exists( 'as_enqueue_async_action' ) ) {
+            $types = ['short', 'long', 'title', 'desc'];
+            $args = [ $product_id, $types ];
+            if ( function_exists( 'as_has_scheduled_action' ) && ! as_has_scheduled_action( 'wasgo_process_single_content', $args, 'wasgo-content' ) ) {
+                as_enqueue_async_action( 'wasgo_process_single_content', $args, 'wasgo-content' );
+            }
+        }
+
         // Clean up previous images safely
         if ( $this_is_rerun ) {
             if ( $current_image_id && $current_image_id != $source_image_id ) {
